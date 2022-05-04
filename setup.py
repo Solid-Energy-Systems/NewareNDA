@@ -1,0 +1,21 @@
+import setuptools
+
+with open('README.md', 'r', encoding='utf-8') as fh:
+    long_description = fh.read()
+
+setuptools.setup(
+    name='NewareNDA',
+    version='0.1.0',
+    description='Neware nda binary file reader.',
+    long_description=long_description,
+    long_description_content_type="text/markdown",
+    author='Daniel Cogswell',
+    author_email='danielcogswell@ses.ai',
+    url='https://github.com/d-cogswell/NewareNDA',
+    py_modules=['NewareNDA'],
+    install_requires=['pandas'],
+    python_requires='>=3.6',
+    classifiers=[
+        "Programming Language :: Python :: 3",
+    ],
+)
