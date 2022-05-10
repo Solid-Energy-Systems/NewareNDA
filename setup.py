@@ -1,3 +1,7 @@
+# © 2022 Copyright SES AI
+# Author: Daniel Cogswell
+# Email: danielcogswell@ses.ai
+
 import setuptools
 
 with open('README.md', 'r', encoding='utf-8') as fh:

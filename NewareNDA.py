@@ -1,3 +1,7 @@
+# © 2022 Copyright SES AI
+# Author: Daniel Cogswell
+# Email: danielcogswell@ses.ai
+
 import mmap
 import struct
 import logging
