@@ -47,7 +47,7 @@ def read(file):
         output = []
         while mm.tell() < mm.size():
             bytes = mm.read(record_len)
-            if bytes[0] == 85:
+            if len(bytes) == record_len and bytes[0] == 85:
                 output.append(bytes_to_df(bytes))
 
     # Create DataFrame
