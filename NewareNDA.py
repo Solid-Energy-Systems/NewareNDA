@@ -97,6 +97,13 @@ def bytes_to_df(bytes):
     [Y, M, D, h, m, s] = struct.unpack('<HBBBBB', bytes[70:77])
     [Range] = struct.unpack('<i', bytes[78:82])
 
+    # Convert date to datetime. Try Unix timestamp on failure.
+    try:
+        Date = datetime(Y, M, D, h, m, s)
+    except ValueError:
+        [Timestamp] = struct.unpack('<Q', bytes[70:78])
+        Date = datetime.fromtimestamp(Timestamp)
+
     # Define field scaling based on instrument Range setting
     multiplier_dict = {
         -20000: 1e-2,
@@ -123,7 +130,7 @@ def bytes_to_df(bytes):
         'Current(mA)': Current*multiplier,
         'Capacity(mAh)': (Charge_capacity+Discharge_capacity)*multiplier/3600,
         'Energy(mWh)': (Charge_energy+Discharge_energy)*multiplier/3600,
-        'Timestamp': datetime(Y, M, D, h, m, s)
+        'Timestamp': Date
     }
     return(rec)
 
