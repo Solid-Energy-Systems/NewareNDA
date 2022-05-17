@@ -18,8 +18,8 @@ def read(file):
     Returns:
         df (pd.DataFrame): DataFrame containing all records in the file
     '''
-    with open(file, "r+b") as f:
-        mm = mmap.mmap(f.fileno(), 0)
+    with open(file, "rb") as f:
+        mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
 
         if mm.read(6) != b'NEWARE':
             raise Exception(f"{file} does not appear to be a Neware file.")
