@@ -39,7 +39,10 @@ def read(file):
         # Identify the beginning of the data section
         record_len = 86
         header = mm.find(b'\x00\x00\x00\x00\x55\x00') + 4
-        while mm[header + record_len] != 85:
+        if header == 3:
+            raise EOFError(f"File {file} does not contain any valid records.")
+        while (mm[header + record_len] != 85 if header + record_len < mm.size()
+               else False):
             header = mm.find(b'\x00\x00\x00\x00\x55\x00', header) + 4
         mm.seek(header)
 
