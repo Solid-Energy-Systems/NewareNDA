@@ -58,13 +58,14 @@ def read(file):
     df.set_index('Index', inplace=True)
 
     # Postprocessing
-    df.Step = count_changes(df.Step)
+    df.Step = count_changes(df.Jump)
     df.Cycle = generate_cycle_number(df)
 
     # Define precision of fields
     dtype_dict = {
         'Cycle': 'int16',
         'Step': 'int16',
+        'Jump': 'int16',
         'Time': 'float32',
         'Voltage': 'float32',
         'Current(mA)': 'float32',
@@ -128,6 +129,7 @@ def bytes_to_df(bytes):
         'Cycle': Cycle + 1,
         'Step': Step,
         'Status': state_dict[Status],
+        'Jump': Jump,
         'Time': Time/1000,
         'Voltage': Voltage/10000,
         'Current(mA)': Current*multiplier,
