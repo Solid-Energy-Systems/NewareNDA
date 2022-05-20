@@ -147,10 +147,8 @@ def generate_cycle_number(df):
     '''
     chg = (df.Status == 'CCCV_Chg') | (df.Status == 'CC_Chg')
     chg = (chg - chg.shift()).clip(0)
-    chg.iat[0] = 0
-    cycle = chg.cumsum()
-    cycle.loc[cycle == 0] = 1
-    return(cycle)
+    chg.iat[0] = 1
+    return(chg.cumsum())
 
 
 def count_changes(series):
