@@ -111,6 +111,7 @@ def bytes_to_df(bytes):
     # Define field scaling based on instrument Range setting
     multiplier_dict = {
         -20000: 1e-2,
+        -6000: 1e-2,
         -3000: 1e-2,
         -100: 1e-3,
         0: 0,
