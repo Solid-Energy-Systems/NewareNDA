@@ -85,9 +85,11 @@ def bytes_to_df(bytes):
     state_dict = {
         1: 'CC_Chg',
         2: 'CC_DChg',
+        3: 'CV_Chg',
         4: 'Rest',
         7: 'CCCV_Chg',
         13: 'Pause',
+        17: 'SIM',
         19: 'CV_DChg',
         20: 'CCCV_DChg'
     }
@@ -120,7 +122,8 @@ def bytes_to_df(bytes):
         200: 1e-2,
         1000: 1e-1,
         6000: 1e-1,
-        12000: 1e-1
+        12000: 1e-1,
+        50000: 1e-1,
     }
     multiplier = multiplier_dict[Range]
 
