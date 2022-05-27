@@ -51,15 +51,15 @@ def read(file):
         while mm.tell() < mm.size():
             bytes = mm.read(record_len)
             if len(bytes) == record_len and bytes[0] == 85:
-                output.append(bytes_to_df(bytes))
+                output.append(_bytes_to_df(bytes))
 
     # Create DataFrame
     df = pd.DataFrame(output)
     df.set_index('Index', inplace=True)
 
     # Postprocessing
-    df.Step = count_changes(df.Jump)
-    df.Cycle = generate_cycle_number(df)
+    df.Step = _count_changes(df.Jump)
+    df.Cycle = _generate_cycle_number(df)
 
     # Define precision of fields
     dtype_dict = {
@@ -77,7 +77,7 @@ def read(file):
     return(df)
 
 
-def bytes_to_df(bytes):
+def _bytes_to_df(bytes):
     '''
     Helper function for interpreting a byte string
     '''
@@ -144,7 +144,7 @@ def bytes_to_df(bytes):
     return(rec)
 
 
-def generate_cycle_number(df):
+def _generate_cycle_number(df):
     '''
     Generate the cycle number by incrementing at the beginning each charge step
     '''
@@ -154,7 +154,7 @@ def generate_cycle_number(df):
     return(chg.cumsum())
 
 
-def count_changes(series):
+def _count_changes(series):
     '''
     Enumerate the number of value changes in a series
     '''
