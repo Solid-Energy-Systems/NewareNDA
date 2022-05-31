@@ -148,12 +148,31 @@ def _bytes_to_df(bytes):
 
 def _generate_cycle_number(df):
     '''
-    Generate the cycle number by incrementing at the beginning each charge step
+    Generate a cycle number to match Neware. A new cycle starts with a charge
+    step after there has previously been a discharge.
     '''
+
+    # Identify the beginning of charge steps
     chg = (df.Status == 'CCCV_Chg') | (df.Status == 'CC_Chg')
     chg = (chg - chg.shift()).clip(0)
     chg.iat[0] = 1
-    return(chg.cumsum())
+
+    # Convert to numpy arrays
+    chg = chg.values
+    status = df.Status.values
+
+    # Increment the cycle at a charge step after there has been a discharge
+    cyc = 1
+    dchg = False
+    for n in range(len(chg)):
+        if chg[n] & dchg:
+            cyc += 1
+            dchg = False
+        elif 'DChg' in status[n]:
+            dchg = True
+        chg[n] = cyc
+
+    return(chg)
 
 
 def _count_changes(series):
