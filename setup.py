@@ -9,7 +9,7 @@ with open('README.md', 'r', encoding='utf-8') as fh:
 
 setuptools.setup(
     name='NewareNDA',
-    version='0.1.0',
+    version='2022.06.01',
     description='Neware nda binary file reader.',
     long_description=long_description,
     long_description_content_type="text/markdown",
