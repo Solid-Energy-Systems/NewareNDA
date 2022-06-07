@@ -169,7 +169,7 @@ def _generate_cycle_number(df):
         if chg[n] & dchg:
             cyc += 1
             dchg = False
-        elif 'DChg' in status[n]:
+        elif 'DChg' in status[n] or status[n] == 'SIM':
             dchg = True
         chg[n] = cyc
 
