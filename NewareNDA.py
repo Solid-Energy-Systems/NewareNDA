@@ -58,7 +58,7 @@ def read(file):
     df.set_index('Index', inplace=True)
 
     # Postprocessing
-    df.Step = _count_changes(df.Jump)
+    df.Step = _count_changes(df.Step)
     df.Cycle = _generate_cycle_number(df)
 
     # Define precision of fields
