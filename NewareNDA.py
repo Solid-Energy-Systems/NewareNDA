@@ -96,7 +96,8 @@ def _bytes_to_df(bytes):
 
     # Extract fields from byte string
     [Index, Cycle] = struct.unpack('<IB', bytes[2:7])
-    [Step, Status, Jump, Time] = struct.unpack('<HBBQ', bytes[10:22])
+    [Step] = struct.unpack('<I', bytes[10:14])
+    [Status, Jump, Time] = struct.unpack('<BBQ', bytes[12:22])
     [Voltage, Current] = struct.unpack('<ii', bytes[22:30])
     [Charge_capacity, Discharge_capacity] = struct.unpack('<qq', bytes[38:54])
     [Charge_energy, Discharge_energy] = struct.unpack('<qq', bytes[54:70])
