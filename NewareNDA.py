@@ -48,14 +48,25 @@ def read(file):
 
         # Read data records
         output = []
+        aux = []
         while mm.tell() < mm.size():
             bytes = mm.read(record_len)
-            if len(bytes) == record_len and bytes[0] == 85:
-                output.append(_bytes_to_df(bytes))
+            if len(bytes) == record_len:
+                if bytes[0:1] == b'\x55':
+                    output.append(_bytes_to_dict(bytes))
+                elif bytes[0:1] == b'\x65':
+                    aux.append(_aux_bytes_to_dict(bytes))
 
     # Create DataFrame
     df = pd.DataFrame(output)
     df.set_index('Index', inplace=True)
+
+    # Join temperature data
+    aux_df = pd.DataFrame(aux).set_index('Index')
+    if not aux_df.empty:
+        for Aux in aux_df.Aux.unique():
+            df = df.join(aux_df.loc[aux_df.Aux == Aux, 'T'])
+            df.rename(columns={'T': f"T{Aux}"}, inplace=True)
 
     # Postprocessing
     df.Step = _count_changes(df.Step)
@@ -77,7 +88,7 @@ def read(file):
     return(df)
 
 
-def _bytes_to_df(bytes):
+def _bytes_to_dict(bytes):
     '''
     Helper function for interpreting a byte string
     '''
@@ -132,7 +143,7 @@ def _bytes_to_df(bytes):
     multiplier = multiplier_dict[Range]
 
     # Create a dictionary for the record
-    rec = {
+    dict = {
         'Index': Index,
         'Cycle': Cycle + 1,
         'Step': Step,
@@ -145,7 +156,22 @@ def _bytes_to_df(bytes):
         'Energy(mWh)': (Charge_energy+Discharge_energy)*multiplier/3600,
         'Timestamp': Date
     }
-    return(rec)
+    return(dict)
+
+
+def _aux_bytes_to_dict(bytes):
+    """Helper function for intepreting auxiliary records"""
+    [Aux] = struct.unpack('<B', bytes[1:2])
+    [Index, Cycle] = struct.unpack('<IB', bytes[2:7])
+    [T] = struct.unpack('<h', bytes[34:36])
+
+    dict = {
+        'Index': Index,
+        'Aux': Aux,
+        'T': T/10
+    }
+
+    return(dict)
 
 
 def _generate_cycle_number(df):
