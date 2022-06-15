@@ -62,8 +62,9 @@ def read(file):
     df.set_index('Index', inplace=True)
 
     # Join temperature data
-    aux_df = pd.DataFrame(aux).set_index('Index')
+    aux_df = pd.DataFrame(aux)
     if not aux_df.empty:
+        aux_df.set_index('Index', inplace=True)
         for Aux in aux_df.Aux.unique():
             df = df.join(aux_df.loc[aux_df.Aux == Aux, 'T'])
             df.rename(columns={'T': f"T{Aux}"}, inplace=True)
