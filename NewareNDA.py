@@ -81,8 +81,10 @@ def read(file):
         'Time': 'float32',
         'Voltage': 'float32',
         'Current(mA)': 'float32',
-        'Capacity(mAh)': 'float32',
-        'Energy(mWh)': 'float32'
+        'Charge_Capacity(mAh)': 'float32',
+        'Discharge_Capacity(mAh)': 'float32',
+        'Charge_Energy(mWh)': 'float32',
+        'Discharge_Energy(mWh)': 'float32'
     }
     df = df.astype(dtype=dtype_dict)
 
@@ -153,8 +155,10 @@ def _bytes_to_dict(bytes):
         'Time': Time/1000,
         'Voltage': Voltage/10000,
         'Current(mA)': Current*multiplier,
-        'Capacity(mAh)': (Charge_capacity+Discharge_capacity)*multiplier/3600,
-        'Energy(mWh)': (Charge_energy+Discharge_energy)*multiplier/3600,
+        'Charge_Capacity(mAh)': Charge_capacity*multiplier/3600,
+        'Discharge_Capacity(mAh)': Discharge_capacity*multiplier/3600,
+        'Charge_Energy(mWh)': Charge_energy*multiplier/3600,
+        'Discharge_Energy(mWh)': Discharge_energy*multiplier/3600,
         'Timestamp': Date
     }
     return(dict)
