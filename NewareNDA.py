@@ -101,6 +101,7 @@ def _bytes_to_dict(bytes):
         2: 'CC_DChg',
         3: 'CV_Chg',
         4: 'Rest',
+        5: 'Cycle',
         7: 'CCCV_Chg',
         13: 'Pause',
         17: 'SIM',
