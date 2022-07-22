@@ -222,5 +222,4 @@ def _count_changes(series):
     '''
     a = series.diff()
     a.iloc[0] = 1
-    a.iloc[-1] = 0
     return((abs(a) > 0).cumsum())
