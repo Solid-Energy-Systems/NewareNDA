@@ -20,6 +20,7 @@ def read(file, start_index=None):
     '''
     with open(file, "rb") as f:
         mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
+        mm_size = mm.size()
 
         if mm.read(6) != b'NEWARE':
             raise Exception(f"{file} does not appear to be a Neware file.")
@@ -42,7 +43,7 @@ def read(file, start_index=None):
         header = mm.find(identifier)
         if header == -1:
             raise EOFError(f"File {file} does not contain any valid records.")
-        while (mm[header + 4 + record_len] != 85 if header + 4 + record_len < mm.size()
+        while (mm[header + 4 + record_len] != 85 if header + 4 + record_len < mm_size
                else False):
             header = mm.find(identifier, header)
         mm.seek(header + 4)
@@ -58,7 +59,7 @@ def read(file, start_index=None):
         # Read data records
         output = []
         aux = []
-        while mm.tell() < mm.size():
+        while mm.tell() < mm_size:
             bytes = mm.read(record_len)
             if len(bytes) == record_len:
                 if bytes[0:1] == b'\x55':
