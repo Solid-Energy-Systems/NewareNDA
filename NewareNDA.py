@@ -143,6 +143,7 @@ def _bytes_to_dict(bytes):
         6000: 1e-1,
         12000: 1e-1,
         50000: 1e-1,
+        60000: 1e-1,
     }
     multiplier = multiplier_dict[Range]
 
