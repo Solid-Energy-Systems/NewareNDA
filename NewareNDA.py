@@ -15,6 +15,9 @@ def read(file, start_index=None):
 
     Args:
         file (str): Name of a .nda file to read
+        start_index (int): Read data beginning at the specified index.
+            Note that Cycle and Step are initialized to a value of 1
+            when reading from start_index.
     Returns:
         df (pd.DataFrame): DataFrame containing all records in the file
     '''
