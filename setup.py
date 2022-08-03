@@ -22,6 +22,7 @@ setuptools.setup(
     author_email='danielcogswell@ses.ai',
     url='https://github.com/d-cogswell/NewareNDA',
     packages=['NewareNDA'],
+    scripts=['bin/NewareNDA'],
     install_requires=['pandas'],
     python_requires='>=3.6',
     classifiers=[
