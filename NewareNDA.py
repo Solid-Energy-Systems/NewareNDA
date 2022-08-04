@@ -54,9 +54,15 @@ def read(file):
         while mm.tell() < mm_size:
             bytes = mm.read(record_len)
             if len(bytes) == record_len:
-                if bytes[0:1] == b'\x55':
+
+                # Check for a data record
+                if (bytes[0:2] == b'\x55\x00'
+                        and bytes[82:87] == b'\x00\x00\x00\x00'):
                     output.append(_bytes_to_dict(bytes))
-                elif bytes[0:1] == b'\x65':
+
+                # Check for an auxiliary record
+                elif (bytes[0:1] == b'\x65'
+                      and bytes[82:87] == b'\x00\x00\x00\x00'):
                     aux.append(_aux_bytes_to_dict(bytes))
 
     # Create DataFrame
