@@ -19,6 +19,6 @@ df = NewareNDA.read('filename.nda')
 ```
 ## Command-line interface:
 ```
-NewareNDA in_file.nda --format feather out_file.ftr
+NewareNDA-cli.py in_file.nda --format feather out_file.ftr
 ```
 The following `--format` options are supported: `csv, excel, feather, hdf, json, parquet, pickle, stata`
