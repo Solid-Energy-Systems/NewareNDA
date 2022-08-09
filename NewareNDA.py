@@ -85,6 +85,7 @@ def read(file):
     dtype_dict = {
         'Cycle': 'uint16',
         'Step': 'uint32',
+        'Status': 'category',
         'Time': 'float32',
         'Voltage': 'float32',
         'Current(mA)': 'float32',
