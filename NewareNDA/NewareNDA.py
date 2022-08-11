@@ -83,7 +83,7 @@ def read(file):
     dtype_dict = {
         'Cycle': 'uint16',
         'Step': 'uint32',
-        'Jump': 'uint16',
+        'Status': 'category',
         'Time': 'float32',
         'Voltage': 'float32',
         'Current(mA)': 'float32',
@@ -159,7 +159,6 @@ def _bytes_to_dict(bytes):
         'Cycle': Cycle + 1,
         'Step': Step,
         'Status': state_dict[Status],
-        'Jump': Jump,
         'Time': Time/1000,
         'Voltage': Voltage/10000,
         'Current(mA)': Current*multiplier,
