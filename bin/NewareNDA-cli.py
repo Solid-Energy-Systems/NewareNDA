@@ -8,8 +8,8 @@ import pandas as pd
 import NewareNDA
 
 output_cmd = {
-    'csv': pd.DataFrame.to_csv,
-    'excel': pd.DataFrame.to_excel,
+    'csv': lambda df, f: pd.DataFrame.to_csv(df, f, index=False),
+    'excel': lambda df, f: pd.DataFrame.to_excel(df, f, index=False),
     'feather': pd.DataFrame.to_feather,
     'hdf': lambda df, f: pd.DataFrame.to_hdf(df, f, key='Index'),
     'json': pd.DataFrame.to_json,
