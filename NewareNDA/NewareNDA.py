@@ -45,7 +45,7 @@ def read(file):
             raise EOFError(f"File {file} does not contain any valid records.")
         while (mm[header + 4 + record_len] != 85 if header + 4 + record_len < mm_size
                else False):
-            header = mm.find(identifier, header)
+            header = mm.find(identifier, header + 4)
         mm.seek(header + 4)
 
         # Read data records
