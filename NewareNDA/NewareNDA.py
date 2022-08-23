@@ -65,8 +65,10 @@ def read(file):
                       and bytes[82:87] == b'\x00\x00\x00\x00'):
                     aux.append(_aux_bytes_to_dict(bytes))
 
-    # Create DataFrame
+    # Create DataFrame and sort by Index
     df = pd.DataFrame(output)
+    if not df.Index.is_monotonic:
+        df.sort_values('Index', inplace=True)
 
     # Join temperature data
     aux_df = pd.DataFrame(aux)
