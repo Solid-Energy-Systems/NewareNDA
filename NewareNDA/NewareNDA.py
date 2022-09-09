@@ -72,6 +72,8 @@ def read(file):
     if not df.Index.is_monotonic:
         df.sort_values('Index', inplace=True)
 
+    df.reset_index(drop=True, inplace=True)
+
     # Join temperature data
     aux_df = pd.DataFrame(aux)
     aux_df.drop_duplicates(inplace=True)
