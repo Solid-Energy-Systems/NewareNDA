@@ -67,11 +67,14 @@ def read(file):
 
     # Create DataFrame and sort by Index
     df = pd.DataFrame(output)
+    df.drop_duplicates(inplace=True)
+
     if not df.Index.is_monotonic:
         df.sort_values('Index', inplace=True)
 
     # Join temperature data
     aux_df = pd.DataFrame(aux)
+    aux_df.drop_duplicates(inplace=True)
     if not aux_df.empty:
         for Aux in aux_df.Aux.unique():
             df = df.join(aux_df.loc[aux_df.Aux == Aux, 'T'])
