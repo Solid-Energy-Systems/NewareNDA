@@ -67,6 +67,7 @@ def read(file):
 
     # Create DataFrame and sort by Index
     df = pd.DataFrame(output)
+    df.dropna(inplace=True)
     df.drop_duplicates(inplace=True)
 
     if not df.Index.is_monotonic:
@@ -131,6 +132,10 @@ def _bytes_to_dict(bytes):
     [Charge_energy, Discharge_energy] = struct.unpack('<qq', bytes[54:70])
     [Y, M, D, h, m, s] = struct.unpack('<HBBBBB', bytes[70:77])
     [Range] = struct.unpack('<i', bytes[78:82])
+
+    # Index should not be zero
+    if Index == 0:
+        return({})
 
     # Convert date to datetime. Try Unix timestamp on failure.
     try:
