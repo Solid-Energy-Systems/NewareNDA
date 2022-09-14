@@ -89,6 +89,7 @@ def read(file):
 
     # Define precision of fields
     dtype_dict = {
+        'Index': 'uint32',
         'Cycle': 'uint16',
         'Step': 'uint32',
         'Status': 'category',
