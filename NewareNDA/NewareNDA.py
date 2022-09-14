@@ -8,6 +8,12 @@ import logging
 from datetime import datetime
 import pandas as pd
 
+# Names for data fields
+rec_columns = ['Index', 'Cycle', 'Step', 'Status', 'Time', 'Voltage',
+               'Current(mA)', 'Charge_Capacity(mAh)', 'Discharge_Capacity(mAh)',
+               'Charge_Energy(mWh)', 'Discharge_Energy(mWh)', 'Timestamp']
+aux_columns = ['Index', 'Aux', 'T']
+
 
 def read(file):
     '''
@@ -58,15 +64,15 @@ def read(file):
                 # Check for a data record
                 if (bytes[0:2] == b'\x55\x00'
                         and bytes[82:87] == b'\x00\x00\x00\x00'):
-                    output.append(_bytes_to_dict(bytes))
+                    output.append(_bytes_to_list(bytes))
 
                 # Check for an auxiliary record
                 elif (bytes[0:1] == b'\x65'
                       and bytes[82:87] == b'\x00\x00\x00\x00'):
-                    aux.append(_aux_bytes_to_dict(bytes))
+                    aux.append(_aux_bytes_to_list(bytes))
 
     # Create DataFrame and sort by Index
-    df = pd.DataFrame(output)
+    df = pd.DataFrame(output, columns=rec_columns)
     df.dropna(inplace=True)
     df.drop_duplicates(inplace=True)
 
@@ -76,7 +82,7 @@ def read(file):
     df.reset_index(drop=True, inplace=True)
 
     # Join temperature data
-    aux_df = pd.DataFrame(aux)
+    aux_df = pd.DataFrame(aux, columns=aux_columns)
     aux_df.drop_duplicates(inplace=True)
     if not aux_df.empty:
         for Aux in aux_df.Aux.unique():
@@ -106,7 +112,7 @@ def read(file):
     return(df)
 
 
-def _bytes_to_dict(bytes):
+def _bytes_to_list(bytes):
     '''
     Helper function for interpreting a byte string
     '''
@@ -136,7 +142,7 @@ def _bytes_to_dict(bytes):
 
     # Index should not be zero
     if Index == 0:
-        return({})
+        return([])
 
     # Convert date to datetime. Try Unix timestamp on failure.
     try:
@@ -171,36 +177,36 @@ def _bytes_to_dict(bytes):
     multiplier = multiplier_dict[Range]
 
     # Create a dictionary for the record
-    dict = {
-        'Index': Index,
-        'Cycle': Cycle + 1,
-        'Step': Step,
-        'Status': state_dict[Status],
-        'Time': Time/1000,
-        'Voltage': Voltage/10000,
-        'Current(mA)': Current*multiplier,
-        'Charge_Capacity(mAh)': Charge_capacity*multiplier/3600,
-        'Discharge_Capacity(mAh)': Discharge_capacity*multiplier/3600,
-        'Charge_Energy(mWh)': Charge_energy*multiplier/3600,
-        'Discharge_Energy(mWh)': Discharge_energy*multiplier/3600,
-        'Timestamp': Date
-    }
-    return(dict)
+    list = [
+        Index,
+        Cycle + 1,
+        Step,
+        state_dict[Status],
+        Time/1000,
+        Voltage/10000,
+        Current*multiplier,
+        Charge_capacity*multiplier/3600,
+        Discharge_capacity*multiplier/3600,
+        Charge_energy*multiplier/3600,
+        Discharge_energy*multiplier/3600,
+        Date
+    ]
+    return(list)
 
 
-def _aux_bytes_to_dict(bytes):
+def _aux_bytes_to_list(bytes):
     """Helper function for intepreting auxiliary records"""
     [Aux] = struct.unpack('<B', bytes[1:2])
     [Index, Cycle] = struct.unpack('<IB', bytes[2:7])
     [T] = struct.unpack('<h', bytes[34:36])
 
-    dict = {
-        'Index': Index,
-        'Aux': Aux,
-        'T': T/10
-    }
+    list = [
+        Index,
+        Aux,
+        T/10
+    ]
 
-    return(dict)
+    return(list)
 
 
 def _generate_cycle_number(df):
