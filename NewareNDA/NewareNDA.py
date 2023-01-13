@@ -49,7 +49,9 @@ def read(file):
         header = mm.find(identifier)
         if header == -1:
             raise EOFError(f"File {file} does not contain any valid records.")
-        while (mm[header + 4 + record_len] != 85 if header + 4 + record_len < mm_size
+        while (((mm[header + 4 + record_len] != 85)
+                | (not _valid_record(mm[header+4:header+4+record_len])))
+               if header + 4 + record_len < mm_size
                else False):
             header = mm.find(identifier, header + 4)
         mm.seek(header + 4)
@@ -110,6 +112,15 @@ def read(file):
     df = df.astype(dtype=dtype_dict)
 
     return(df)
+
+
+def _valid_record(bytes):
+    '''
+    Helper function to identify a valid record
+    '''
+    # Check for a non-zero Status
+    [Status] = struct.unpack('<B', bytes[12:13])
+    return(Status != 0)
 
 
 def _bytes_to_list(bytes):
