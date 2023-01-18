@@ -9,21 +9,22 @@ from datetime import datetime
 import pandas as pd
 
 # Names for data fields
-rec_columns = ['Index', 'Cycle', 'Step', 'Status', 'Time', 'Voltage',
-               'Current(mA)', 'Charge_Capacity(mAh)', 'Discharge_Capacity(mAh)',
-               'Charge_Energy(mWh)', 'Discharge_Energy(mWh)', 'Timestamp']
+rec_columns = [
+    'Index', 'Cycle', 'Step', 'Status', 'Time', 'Voltage',
+    'Current(mA)', 'Charge_Capacity(mAh)', 'Discharge_Capacity(mAh)',
+    'Charge_Energy(mWh)', 'Discharge_Energy(mWh)', 'Timestamp']
 aux_columns = ['Index', 'Aux', 'T']
 
 
 def read(file):
-    '''
+    """
     Function read electrochemical data from a Neware nda binary file.
 
     Args:
         file (str): Name of a .nda file to read
     Returns:
         df (pd.DataFrame): DataFrame containing all records in the file
-    '''
+    """
     with open(file, "rb") as f:
         mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
         mm_size = mm.size()
@@ -115,18 +116,14 @@ def read(file):
 
 
 def _valid_record(bytes):
-    '''
-    Helper function to identify a valid record
-    '''
+    """Helper function to identify a valid record"""
     # Check for a non-zero Status
     [Status] = struct.unpack('<B', bytes[12:13])
     return(Status != 0)
 
 
 def _bytes_to_list(bytes):
-    '''
-    Helper function for interpreting a byte string
-    '''
+    """Helper function for interpreting a byte string"""
     # Dictionary mapping Status integer to string
     state_dict = {
         1: 'CC_Chg',
@@ -222,10 +219,10 @@ def _aux_bytes_to_list(bytes):
 
 
 def _generate_cycle_number(df):
-    '''
+    """
     Generate a cycle number to match Neware. A new cycle starts with a charge
     step after there has previously been a discharge.
-    '''
+    """
 
     # Identify the beginning of charge steps
     chg = (df.Status == 'CCCV_Chg') | (df.Status == 'CC_Chg')
@@ -251,9 +248,7 @@ def _generate_cycle_number(df):
 
 
 def _count_changes(series):
-    '''
-    Enumerate the number of value changes in a series
-    '''
+    """Enumerate the number of value changes in a series"""
     a = series.diff()
     a.iloc[0] = 1
     a.iloc[-1] = 0
