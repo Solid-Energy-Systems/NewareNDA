@@ -161,6 +161,7 @@ def _bytes_to_list(bytes):
 
     # Define field scaling based on instrument Range setting
     multiplier_dict = {
+        -200000: 1e-2,
         -100000: 1e-2,
         -60000: 1e-2,
         -30000: 1e-2,
