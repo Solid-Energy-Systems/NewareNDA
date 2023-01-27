@@ -30,7 +30,7 @@ def read(file):
         mm_size = mm.size()
 
         if mm.read(6) != b'NEWARE':
-            raise Exception(f"{file} does not appear to be a Neware file.")
+            raise ValueError(f"{file} does not appear to be a Neware file.")
 
         # Try to find server and client version info
         version_loc = mm.find(b'BTSServer')
