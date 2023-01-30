@@ -79,7 +79,7 @@ def read(file):
     df.dropna(inplace=True)
     df.drop_duplicates(inplace=True)
 
-    if not df.Index.is_monotonic:
+    if not df.Index.is_monotonic_increasing:
         df.sort_values('Index', inplace=True)
 
     df.reset_index(drop=True, inplace=True)
