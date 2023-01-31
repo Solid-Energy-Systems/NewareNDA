@@ -21,6 +21,7 @@ setuptools.setup(
     author='Daniel Cogswell',
     author_email='danielcogswell@ses.ai',
     url='https://github.com/d-cogswell/NewareNDA',
+    license='BSD-3-Clause',
     packages=['NewareNDA'],
     scripts=['bin/NewareNDA-cli.py'],
     install_requires=['pandas'],
