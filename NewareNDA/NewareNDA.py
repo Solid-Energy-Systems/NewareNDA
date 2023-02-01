@@ -9,27 +9,28 @@ from datetime import datetime
 import pandas as pd
 
 # Names for data fields
-rec_columns = ['Index', 'Cycle', 'Step', 'Status', 'Time', 'Voltage',
-               'Current(mA)', 'Charge_Capacity(mAh)', 'Discharge_Capacity(mAh)',
-               'Charge_Energy(mWh)', 'Discharge_Energy(mWh)', 'Timestamp']
+rec_columns = [
+    'Index', 'Cycle', 'Step', 'Status', 'Time', 'Voltage',
+    'Current(mA)', 'Charge_Capacity(mAh)', 'Discharge_Capacity(mAh)',
+    'Charge_Energy(mWh)', 'Discharge_Energy(mWh)', 'Timestamp']
 aux_columns = ['Index', 'Aux', 'T']
 
 
 def read(file):
-    '''
+    """
     Function read electrochemical data from a Neware nda binary file.
 
     Args:
         file (str): Name of a .nda file to read
     Returns:
         df (pd.DataFrame): DataFrame containing all records in the file
-    '''
+    """
     with open(file, "rb") as f:
         mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
         mm_size = mm.size()
 
         if mm.read(6) != b'NEWARE':
-            raise Exception(f"{file} does not appear to be a Neware file.")
+            raise ValueError(f"{file} does not appear to be a Neware file.")
 
         # Try to find server and client version info
         version_loc = mm.find(b'BTSServer')
@@ -49,7 +50,9 @@ def read(file):
         header = mm.find(identifier)
         if header == -1:
             raise EOFError(f"File {file} does not contain any valid records.")
-        while (mm[header + 4 + record_len] != 85 if header + 4 + record_len < mm_size
+        while (((mm[header + 4 + record_len] != 85)
+                | (not _valid_record(mm[header+4:header+4+record_len])))
+               if header + 4 + record_len < mm_size
                else False):
             header = mm.find(identifier, header + 4)
         mm.seek(header + 4)
@@ -76,7 +79,7 @@ def read(file):
     df.dropna(inplace=True)
     df.drop_duplicates(inplace=True)
 
-    if not df.Index.is_monotonic:
+    if not df.Index.is_monotonic_increasing:
         df.sort_values('Index', inplace=True)
 
     df.reset_index(drop=True, inplace=True)
@@ -112,10 +115,15 @@ def read(file):
     return(df)
 
 
+def _valid_record(bytes):
+    """Helper function to identify a valid record"""
+    # Check for a non-zero Status
+    [Status] = struct.unpack('<B', bytes[12:13])
+    return(Status != 0)
+
+
 def _bytes_to_list(bytes):
-    '''
-    Helper function for interpreting a byte string
-    '''
+    """Helper function for interpreting a byte string"""
     # Dictionary mapping Status integer to string
     state_dict = {
         1: 'CC_Chg',
@@ -124,6 +132,7 @@ def _bytes_to_list(bytes):
         4: 'Rest',
         5: 'Cycle',
         7: 'CCCV_Chg',
+        10: 'CR_DChg',
         13: 'Pause',
         17: 'SIM',
         19: 'CV_DChg',
@@ -153,6 +162,7 @@ def _bytes_to_list(bytes):
 
     # Define field scaling based on instrument Range setting
     multiplier_dict = {
+        -200000: 1e-2,
         -100000: 1e-2,
         -60000: 1e-2,
         -30000: 1e-2,
@@ -211,10 +221,10 @@ def _aux_bytes_to_list(bytes):
 
 
 def _generate_cycle_number(df):
-    '''
+    """
     Generate a cycle number to match Neware. A new cycle starts with a charge
     step after there has previously been a discharge.
-    '''
+    """
 
     # Identify the beginning of charge steps
     chg = (df.Status == 'CCCV_Chg') | (df.Status == 'CC_Chg')
@@ -240,9 +250,7 @@ def _generate_cycle_number(df):
 
 
 def _count_changes(series):
-    '''
-    Enumerate the number of value changes in a series
-    '''
+    """Enumerate the number of value changes in a series"""
     a = series.diff()
     a.iloc[0] = 1
     a.iloc[-1] = 0

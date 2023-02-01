@@ -1,4 +1,4 @@
-# © 2022 Copyright SES AI
+# © 2023 Copyright SES AI
 # Author: Daniel Cogswell
 # Email: danielcogswell@ses.ai
 
@@ -20,7 +20,7 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     author='Daniel Cogswell',
     author_email='danielcogswell@ses.ai',
-    url='https://github.com/d-cogswell/NewareNDA',
+    url='https://github.com/Solid-Energy-Systems/NewareNDA',
     license='BSD-3-Clause',
     packages=['NewareNDA'],
     scripts=['bin/NewareNDA-cli.py'],
