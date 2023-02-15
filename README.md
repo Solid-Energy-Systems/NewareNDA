@@ -4,7 +4,7 @@
 <br>Author: Daniel Cogswell
 <br>Email: danielcogswell@ses.ai
 
-Neware NDA binary file reader.
+Python module and Bash command line tool for reading and converting Neware .nda battery cycling files.
 
 # Installation
 ```
