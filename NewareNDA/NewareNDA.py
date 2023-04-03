@@ -88,9 +88,10 @@ def read(file):
     aux_df = pd.DataFrame(aux, columns=aux_columns)
     aux_df.drop_duplicates(inplace=True)
     if not aux_df.empty:
-        for Aux in aux_df.Aux.unique():
-            df = df.join(aux_df.loc[aux_df.Aux == Aux, 'T'])
-            df.rename(columns={'T': f"T{Aux}"}, inplace=True)
+        pvt_df = aux_df.pivot(index='Index', columns='Aux', values='T')
+        for k in pvt_df.keys():
+            pvt_df.rename(columns={k: f"T{k}"}, inplace=True)
+        df = df.join(pvt_df, on='Index')
 
     # Postprocessing
     df.Step = _count_changes(df.Step)
