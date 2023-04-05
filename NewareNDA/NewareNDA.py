@@ -113,14 +113,14 @@ def read(file):
     }
     df = df.astype(dtype=dtype_dict)
 
-    return(df)
+    return df
 
 
 def _valid_record(bytes):
     """Helper function to identify a valid record"""
     # Check for a non-zero Status
     [Status] = struct.unpack('<B', bytes[12:13])
-    return(Status != 0)
+    return (Status != 0)
 
 
 def _bytes_to_list(bytes):
@@ -152,7 +152,7 @@ def _bytes_to_list(bytes):
 
     # Index should not be zero
     if Index == 0:
-        return([])
+        return []
 
     # Convert date to datetime. Try Unix timestamp on failure.
     try:
@@ -203,7 +203,7 @@ def _bytes_to_list(bytes):
         Discharge_energy*multiplier/3600,
         Date
     ]
-    return(list)
+    return list
 
 
 def _aux_bytes_to_list(bytes):
@@ -218,7 +218,7 @@ def _aux_bytes_to_list(bytes):
         T/10
     ]
 
-    return(list)
+    return list
 
 
 def _generate_cycle_number(df):
@@ -247,7 +247,7 @@ def _generate_cycle_number(df):
             dchg = True
         chg[n] = cyc
 
-    return(chg)
+    return chg
 
 
 def _count_changes(series):
@@ -255,4 +255,4 @@ def _count_changes(series):
     a = series.diff()
     a.iloc[0] = 1
     a.iloc[-1] = 0
-    return((abs(a) > 0).cumsum())
+    return (abs(a) > 0).cumsum()
