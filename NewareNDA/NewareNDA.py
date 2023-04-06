@@ -210,17 +210,10 @@ def _bytes_to_list(bytes):
 
 def _aux_bytes_to_list(bytes):
     """Helper function for intepreting auxiliary records"""
-    [Aux] = struct.unpack('<B', bytes[1:2])
-    [Index, Cycle] = struct.unpack('<IB', bytes[2:7])
+    [Aux, Index] = struct.unpack('<BI', bytes[1:6])
     [T] = struct.unpack('<h', bytes[34:36])
 
-    list = [
-        Index,
-        Aux,
-        T/10
-    ]
-
-    return list
+    return [Index, Aux, T/10]
 
 
 def _generate_cycle_number(df):
