@@ -5,6 +5,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [v2023.04.14]
+### Added
+- Significant performance improvement.
+- PEP8 code formatting consistency.
+
+### Fixed
+- Issue #22 that occasionally resulted in incorrect temperature values.
+
+
 ## [v2023.02.01]
 ### Added
 - Support for additional current ranges and states
