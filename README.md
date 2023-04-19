@@ -7,9 +7,15 @@
 Python module and command line tool for reading and converting Neware .nda battery cycling files.
 
 # Installation
+To install from the PyPi package repository:
+```
+pip install NewareNDA
+```
+
+To install from source, clone this repository and run:
 ```
 cd NewareNDA
-pip install .
+pip install NewareNDA
 ```
 
 # Usage
