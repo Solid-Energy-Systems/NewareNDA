@@ -177,8 +177,8 @@ def _bytes_to_list(bytes):
     [Y, M, D, h, m, s] = struct.unpack('<HBBBBB', bytes[70:77])
     [Range] = struct.unpack('<i', bytes[78:82])
 
-    # Index should not be zero
-    if Index == 0:
+    # Index and should not be zero
+    if Index == 0 or Status == 0:
         return []
 
     # Convert date to datetime. Try Unix timestamp on failure.
