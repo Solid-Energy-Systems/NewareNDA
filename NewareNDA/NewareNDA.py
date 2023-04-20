@@ -135,7 +135,7 @@ def read(file):
     df.dropna(inplace=True)
     df.drop_duplicates(inplace=True)
 
-    if not df.Index.is_monotonic_increasing:
+    if not df['Index'].is_monotonic_increasing:
         df.sort_values('Index', inplace=True)
 
     df.reset_index(drop=True, inplace=True)
@@ -150,8 +150,8 @@ def read(file):
         df = df.join(pvt_df, on='Index')
 
     # Postprocessing
-    df.Step = _count_changes(df.Step)
-    df.Cycle = _generate_cycle_number(df)
+    df['Step'] = _count_changes(df['Step'])
+    df['Cycle'] = _generate_cycle_number(df)
     df = df.astype(dtype=dtype_dict)
 
     return df
@@ -223,13 +223,13 @@ def _generate_cycle_number(df):
     """
 
     # Identify the beginning of charge steps
-    chg = (df.Status == 'CCCV_Chg') | (df.Status == 'CC_Chg')
+    chg = (df['Status'] == 'CCCV_Chg') | (df['Status'] == 'CC_Chg')
     chg = (chg - chg.shift()).clip(0)
     chg.iat[0] = 1
 
     # Convert to numpy arrays
     chg = chg.values
-    status = df.Status.values
+    status = df['Status'].values
 
     # Increment the cycle at a charge step after there has been a discharge
     cyc = 1
