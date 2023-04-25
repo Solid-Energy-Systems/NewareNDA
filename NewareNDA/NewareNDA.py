@@ -181,13 +181,6 @@ def _bytes_to_list(bytes):
     if Index == 0 or Status == 0:
         return []
 
-    # Convert date to datetime. Try Unix timestamp on failure.
-    try:
-        Date = datetime(Y, M, D, h, m, s)
-    except ValueError:
-        [Timestamp] = struct.unpack('<Q', bytes[70:78])
-        Date = datetime.fromtimestamp(Timestamp)
-
     multiplier = multiplier_dict[Range]
 
     # Create a dictionary for the record
@@ -203,7 +196,7 @@ def _bytes_to_list(bytes):
         Discharge_capacity*multiplier/3600,
         Charge_energy*multiplier/3600,
         Discharge_energy*multiplier/3600,
-        Date
+        datetime(Y, M, D, h, m, s)
     ]
     return list
 
