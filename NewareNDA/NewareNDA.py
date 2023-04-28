@@ -2,6 +2,7 @@
 # Author: Daniel Cogswell
 # Email: danielcogswell@ses.ai
 
+import os
 import mmap
 import struct
 import logging
@@ -10,9 +11,28 @@ import pandas as pd
 
 from NewareNDA.dicts import rec_columns, aux_columns, dtype_dict, \
     multiplier_dict, state_dict
+from .NewareNDAx import read_ndax
 
 
 def read(file):
+    """
+    Read electrochemical data from an Neware nda or ndax binary file.
+
+    Args:
+        file (str): Name of an .nda or .ndax file to read
+    Returns:
+        df (pd.DataFrame): DataFrame containing all records in the file
+    """
+    _, ext = os.path.splitext(file)
+    if ext == '.nda':
+        return read_nda(file)
+    elif ext == '.ndax':
+        return read_ndax(file)
+    else:
+        raise TypeError("File type not supported!")
+
+
+def read_nda(file):
     """
     Function read electrochemical data from a Neware nda binary file.
 
