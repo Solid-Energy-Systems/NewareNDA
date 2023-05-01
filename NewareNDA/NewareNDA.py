@@ -135,7 +135,7 @@ def read(file):
     df.dropna(inplace=True)
     df.drop_duplicates(inplace=True)
 
-    if not df.Index.is_monotonic_increasing:
+    if not df['Index'].is_monotonic_increasing:
         df.sort_values('Index', inplace=True)
 
     df.reset_index(drop=True, inplace=True)
@@ -150,8 +150,8 @@ def read(file):
         df = df.join(pvt_df, on='Index')
 
     # Postprocessing
-    df.Step = _count_changes(df.Step)
-    df.Cycle = _generate_cycle_number(df)
+    df['Step'] = _count_changes(df['Step'])
+    df['Cycle'] = _generate_cycle_number(df)
     df = df.astype(dtype=dtype_dict)
 
     return df
@@ -177,16 +177,9 @@ def _bytes_to_list(bytes):
     [Y, M, D, h, m, s] = struct.unpack('<HBBBBB', bytes[70:77])
     [Range] = struct.unpack('<i', bytes[78:82])
 
-    # Index should not be zero
-    if Index == 0:
+    # Index and should not be zero
+    if Index == 0 or Status == 0:
         return []
-
-    # Convert date to datetime. Try Unix timestamp on failure.
-    try:
-        Date = datetime(Y, M, D, h, m, s)
-    except ValueError:
-        [Timestamp] = struct.unpack('<Q', bytes[70:78])
-        Date = datetime.fromtimestamp(Timestamp)
 
     multiplier = multiplier_dict[Range]
 
@@ -203,7 +196,7 @@ def _bytes_to_list(bytes):
         Discharge_capacity*multiplier/3600,
         Charge_energy*multiplier/3600,
         Discharge_energy*multiplier/3600,
-        Date
+        datetime(Y, M, D, h, m, s)
     ]
     return list
 
@@ -223,13 +216,13 @@ def _generate_cycle_number(df):
     """
 
     # Identify the beginning of charge steps
-    chg = (df.Status == 'CCCV_Chg') | (df.Status == 'CC_Chg')
+    chg = (df['Status'] == 'CCCV_Chg') | (df['Status'] == 'CC_Chg')
     chg = (chg - chg.shift()).clip(0)
     chg.iat[0] = 1
 
     # Convert to numpy arrays
     chg = chg.values
-    status = df.Status.values
+    status = df['Status'].values
 
     # Increment the cycle at a charge step after there has been a discharge
     cyc = 1
