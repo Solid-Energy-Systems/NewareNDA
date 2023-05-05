@@ -132,7 +132,6 @@ def read(file):
 
     # Create DataFrame and sort by Index
     df = pd.DataFrame(output, columns=rec_columns)
-    df.dropna(inplace=True)
     df.drop_duplicates(subset='Index', inplace=True)
 
     if not df['Index'].is_monotonic_increasing:
