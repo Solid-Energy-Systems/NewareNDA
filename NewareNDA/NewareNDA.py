@@ -73,12 +73,14 @@ multiplier_dict = {
 }
 
 
-def read(file):
+def read(file, software_cycle_number=False):
     """
     Function read electrochemical data from a Neware nda binary file.
 
     Args:
         file (str): Name of a .nda file to read
+        software_cycle_number (bool): Generate the cycle number field
+        to match old versions of BTSDA
     Returns:
         df (pd.DataFrame): DataFrame containing all records in the file
     """
@@ -151,7 +153,8 @@ def read(file):
 
     # Postprocessing
     df['Step'] = _count_changes(df['Step'])
-    df['Cycle'] = _generate_cycle_number(df)
+    if software_cycle_number:
+        df['Cycle'] = _generate_cycle_number(df)
     df = df.astype(dtype=dtype_dict)
 
     return df
@@ -168,7 +171,7 @@ def _bytes_to_list(bytes):
     """Helper function for interpreting a byte string"""
 
     # Extract fields from byte string
-    [Index, Cycle] = struct.unpack('<IB', bytes[2:7])
+    [Index, Cycle] = struct.unpack('<II', bytes[2:10])
     [Step] = struct.unpack('<I', bytes[10:14])
     [Status, Jump, Time] = struct.unpack('<BBQ', bytes[12:22])
     [Voltage, Current] = struct.unpack('<ii', bytes[22:30])
