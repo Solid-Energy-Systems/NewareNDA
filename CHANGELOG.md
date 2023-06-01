@@ -5,6 +5,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [v2023.06.01]
+### Added
+- Missing current range.
+- Performance improvements
+
+### Changed
+- The cycle number is now read directly from the nda file for compatibility with the newest version of BTSDA. Previous numbering can be restored by enabling the new 'software_cycle_number' flag.
+
+
 ## [v2023.05.01]
 ### Fixed
 - Issue #20, files failing to load.
