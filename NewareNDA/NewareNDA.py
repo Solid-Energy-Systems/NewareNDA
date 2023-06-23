@@ -14,7 +14,7 @@ from NewareNDA.dicts import rec_columns, aux_columns, dtype_dict, \
 from .NewareNDAx import read_ndax
 
 
-def read(file):
+def read(file, software_cycle_number=False):
     """
     Read electrochemical data from an Neware nda or ndax binary file.
 
@@ -38,6 +38,8 @@ def read_nda(file):
 
     Args:
         file (str): Name of a .nda file to read
+        software_cycle_number (bool): Generate the cycle number field
+        to match old versions of BTSDA
     Returns:
         df (pd.DataFrame): DataFrame containing all records in the file
     """
@@ -92,10 +94,9 @@ def read_nda(file):
 
     # Create DataFrame and sort by Index
     df = pd.DataFrame(output, columns=rec_columns)
-    df.dropna(inplace=True)
-    df.drop_duplicates(inplace=True)
+    df.drop_duplicates(subset='Index', inplace=True)
 
-    if not df.Index.is_monotonic_increasing:
+    if not df['Index'].is_monotonic_increasing:
         df.sort_values('Index', inplace=True)
 
     df.reset_index(drop=True, inplace=True)
@@ -110,8 +111,9 @@ def read_nda(file):
         df = df.join(pvt_df, on='Index')
 
     # Postprocessing
-    df.Step = _count_changes(df.Step)
-    df.Cycle = _generate_cycle_number(df)
+    df['Step'] = _count_changes(df['Step'])
+    if software_cycle_number:
+        df['Cycle'] = _generate_cycle_number(df)
     df = df.astype(dtype=dtype_dict)
 
     return df
@@ -128,7 +130,7 @@ def _bytes_to_list(bytes):
     """Helper function for interpreting a byte string"""
 
     # Extract fields from byte string
-    [Index, Cycle] = struct.unpack('<IB', bytes[2:7])
+    [Index, Cycle] = struct.unpack('<II', bytes[2:10])
     [Step] = struct.unpack('<I', bytes[10:14])
     [Status, Jump, Time] = struct.unpack('<BBQ', bytes[12:22])
     [Voltage, Current] = struct.unpack('<ii', bytes[22:30])
@@ -137,16 +139,9 @@ def _bytes_to_list(bytes):
     [Y, M, D, h, m, s] = struct.unpack('<HBBBBB', bytes[70:77])
     [Range] = struct.unpack('<i', bytes[78:82])
 
-    # Index should not be zero
-    if Index == 0:
+    # Index and should not be zero
+    if Index == 0 or Status == 0:
         return []
-
-    # Convert date to datetime. Try Unix timestamp on failure.
-    try:
-        Date = datetime(Y, M, D, h, m, s)
-    except ValueError:
-        [Timestamp] = struct.unpack('<Q', bytes[70:78])
-        Date = datetime.fromtimestamp(Timestamp)
 
     multiplier = multiplier_dict[Range]
 
@@ -163,7 +158,7 @@ def _bytes_to_list(bytes):
         Discharge_capacity*multiplier/3600,
         Charge_energy*multiplier/3600,
         Discharge_energy*multiplier/3600,
-        Date
+        datetime(Y, M, D, h, m, s)
     ]
     return list
 
@@ -183,13 +178,13 @@ def _generate_cycle_number(df):
     """
 
     # Identify the beginning of charge steps
-    chg = (df.Status == 'CCCV_Chg') | (df.Status == 'CC_Chg')
+    chg = (df['Status'] == 'CCCV_Chg') | (df['Status'] == 'CC_Chg')
     chg = (chg - chg.shift()).clip(0)
     chg.iat[0] = 1
 
     # Convert to numpy arrays
     chg = chg.values
-    status = df.Status.values
+    status = df['Status'].values
 
     # Increment the cycle at a charge step after there has been a discharge
     cyc = 1
