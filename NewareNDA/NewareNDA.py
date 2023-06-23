@@ -25,14 +25,14 @@ def read(file, software_cycle_number=False):
     """
     _, ext = os.path.splitext(file)
     if ext == '.nda':
-        return read_nda(file)
+        return read_nda(file, software_cycle_number)
     elif ext == '.ndax':
         return read_ndax(file)
     else:
         raise TypeError("File type not supported!")
 
 
-def read_nda(file):
+def read_nda(file, software_cycle_number):
     """
     Function read electrochemical data from a Neware nda binary file.
 
