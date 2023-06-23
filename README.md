@@ -15,7 +15,7 @@ pip install NewareNDA
 To install from source, clone this repository and run:
 ```
 cd NewareNDA
-pip install NewareNDA
+pip install .
 ```
 
 # Usage
