@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Performance improvements
 
 ### Changed
-- The cycle number is now read directly from the nda file for compatibility with the newest version of BTSDA. Previous numbering can be restored by enabling the new 'software_cycle_number' flag.
+- The cycle number is now read directly from the nda file for compatibility with the newest version of BTSDA. Previous numbering can be restored with the new 'software_cycle_number' flag.
 
 
 ## [v2023.05.01]
