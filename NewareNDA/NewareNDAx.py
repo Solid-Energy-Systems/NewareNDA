@@ -51,7 +51,8 @@ def read_ndc(file):
         while header != -1:
             mm.seek(header)
             bytes = mm.read(record_len)
-            output.append(_bytes_to_list_ndc(bytes))
+            if _valid_record(bytes):
+                output.append(_bytes_to_list_ndc(bytes))
             header = mm.find(identifier, header + record_len)
 
     # Create DataFrame and sort by Index
@@ -66,6 +67,12 @@ def read_ndc(file):
     # Postprocessing
     df = df.astype(dtype=dtype_dict)
     return df
+
+
+def _valid_record(bytes):
+    """Helper function to identify a valid record"""
+    [Status] = struct.unpack('<B', bytes[17:18])
+    return (Status != 0) & (Status != 255)
 
 
 def _bytes_to_list_ndc(bytes):
