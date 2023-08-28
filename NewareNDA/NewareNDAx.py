@@ -43,17 +43,22 @@ def read_ndc(file):
 
         # Identify the beginning of the data section
         record_len = 94
-        header = 517
+        offset = 0
         identifier = mm[517:525]
+        if identifier == b'\x00\x00\x00\x00\x00\x00\x00\x00':
+            record_len = 90
+            offset = 4
+            identifier = b'\x00\x00\x00\x55'
 
         # Read data records
         output = []
+        header = mm.find(identifier)
         while header != -1:
-            mm.seek(header)
+            mm.seek(header - offset)
             bytes = mm.read(record_len)
             if _valid_record(bytes):
                 output.append(_bytes_to_list_ndc(bytes))
-            header = mm.find(identifier, header + record_len)
+            header = mm.find(identifier, header - offset + record_len)
 
     # Create DataFrame and sort by Index
     df = pd.DataFrame(output, columns=rec_columns)
