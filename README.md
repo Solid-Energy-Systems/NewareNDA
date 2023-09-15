@@ -28,3 +28,6 @@ df = NewareNDA.read('filename.nda')
 NewareNDA-cli.py in_file.nda --format feather out_file.ftr
 ```
 The following `--format` options are supported: `csv, excel, feather, hdf, json, parquet, pickle, stata`
+
+# Troubleshooting
+If you encounter a key error, it is often the case that your file has a hardware setting that we have not seen before. Usually it is a quick fix that requires comparing output from BTSDA with values extracted by NewareNDA. Please start a new Github Issue and we will help debug.
