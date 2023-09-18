@@ -28,6 +28,8 @@ state_dict = {
     4: 'Rest',
     5: 'Cycle',
     7: 'CCCV_Chg',
+    8: 'CP_DChg',
+    9: 'CP_Chg',
     10: 'CR_DChg',
     13: 'Pause',
     17: 'SIM',
