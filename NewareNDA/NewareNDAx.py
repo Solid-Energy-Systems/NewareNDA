@@ -6,6 +6,7 @@ import mmap
 import struct
 import tempfile
 import zipfile
+import re
 from datetime import datetime
 import pandas as pd
 
@@ -25,7 +26,19 @@ def read_ndax(file):
     with tempfile.TemporaryDirectory() as tmpdir:
         zf = zipfile.PyZipFile(file)
         data_file = zf.extract('data.ndc', path=tmpdir)
-        data_df = read_ndc(data_file)
+        data_df, _ = read_ndc(data_file)
+
+        # Read and merge Aux data from ndc files
+        for f in zf.namelist():
+            m = re.search(".*\_([0-9]+)\.ndc", f)
+            if m:
+                Aux = m[1]
+                aux_file = zf.extract(f, path=tmpdir)
+                _, aux_df = read_ndc(aux_file)
+                aux_df.rename(columns={'T': f'T{Aux}'}, inplace=True)
+                if not aux_df.empty:
+                    data_df = data_df.merge(aux_df, how='left', on='Index')
+
     return data_df
 
 
@@ -37,6 +50,7 @@ def read_ndc(file):
         file (str): Name of an .ndc file to read
     Returns:
         df (pd.DataFrame): DataFrame containing all records in the file
+        aux_df (pd.DataFrame): DataFrame containing any temperature data
     """
     with open(file, 'rb') as f:
         mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
@@ -48,10 +62,14 @@ def read_ndc(file):
 
         # Read data records
         output = []
+        aux = []
         while header != -1:
             mm.seek(header)
             bytes = mm.read(record_len)
-            output.append(_bytes_to_list_ndc(bytes))
+            if bytes[0:1] == b'\x55':
+                output.append(_bytes_to_list_ndc(bytes))
+            elif bytes[0:1] == b'\x65':
+                aux.append(_aux_bytes_to_list_ndc(bytes))
             header = mm.find(identifier, header + record_len)
 
     # Create DataFrame and sort by Index
@@ -65,7 +83,9 @@ def read_ndc(file):
 
     # Postprocessing
     df = df.astype(dtype=dtype_dict)
-    return df
+    aux_df = pd.DataFrame(aux, columns=['Index', 'T'])
+
+    return df, aux_df
 
 
 def _bytes_to_list_ndc(bytes):
@@ -100,3 +120,11 @@ def _bytes_to_list_ndc(bytes):
         datetime(Y, M, D, h, m, s)
     ]
     return list
+
+
+def _aux_bytes_to_list_ndc(bytes):
+    """Helper function for intepreting auxiliary records"""
+    [Index] = struct.unpack('<I', bytes[8:12])
+    [T] = struct.unpack('<h', bytes[41:43])
+
+    return [Index, T/10]
