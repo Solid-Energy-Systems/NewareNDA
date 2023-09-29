@@ -35,7 +35,8 @@ def read_ndax(file):
                 Aux = m[1]
                 aux_file = zf.extract(f, path=tmpdir)
                 _, aux_df = read_ndc(aux_file)
-                aux_df.rename(columns={'T': f'T{Aux}'}, inplace=True)
+                aux_df.rename(columns={'T': f'T{Aux}', 'V': f'V{Aux}'},
+                              inplace=True)
                 if not aux_df.empty:
                     data_df = data_df.merge(aux_df, how='left', on='Index')
 
@@ -69,7 +70,9 @@ def read_ndc(file):
             if bytes[0:1] == b'\x55':
                 output.append(_bytes_to_list_ndc(bytes))
             elif bytes[0:1] == b'\x65':
-                aux.append(_aux_bytes_to_list_ndc(bytes))
+                aux.append(_aux_bytes_65_to_list_ndc(bytes))
+            elif bytes[0:1] == b'\x74':
+                aux.append(_aux_bytes_74_to_list_ndc(bytes))
             header = mm.find(identifier, header + record_len)
 
     # Create DataFrame and sort by Index
@@ -82,9 +85,12 @@ def read_ndc(file):
     df.reset_index(drop=True, inplace=True)
 
     # Postprocessing
+    aux_df = pd.DataFrame([])
     df = df.astype(dtype=dtype_dict)
-    aux_df = pd.DataFrame(aux, columns=['Index', 'T'])
-
+    if identifier[0:1] == b'\x55':
+        aux_df = pd.DataFrame(aux, columns=['Index', 'T'])
+    elif identifier[0:1] == b'\x74':
+        aux_df = pd.DataFrame(aux, columns=['Index', 'V', 'T'])
     return df, aux_df
 
 
@@ -122,9 +128,18 @@ def _bytes_to_list_ndc(bytes):
     return list
 
 
-def _aux_bytes_to_list_ndc(bytes):
+def _aux_bytes_65_to_list_ndc(bytes):
     """Helper function for intepreting auxiliary records"""
     [Index] = struct.unpack('<I', bytes[8:12])
     [T] = struct.unpack('<h', bytes[41:43])
 
     return [Index, T/10]
+
+
+def _aux_bytes_74_to_list_ndc(bytes):
+    """Helper function for intepreting auxiliary records"""
+    [Index] = struct.unpack('<I', bytes[8:12])
+    [V] = struct.unpack('<i', bytes[31:35])
+    [T] = struct.unpack('<h', bytes[41:43])
+
+    return [Index, V/10000, T/10]
