@@ -5,6 +5,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [v2023.10.02]
+### Added
+- Support for constant power charge and discharge.
+- Additional current ranges.
+
+
 ## [v2023.07.03]
 ### Added
 - Support for reading ndax.
