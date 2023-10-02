@@ -178,7 +178,7 @@ def _generate_cycle_number(df):
     """
 
     # Identify the beginning of charge steps
-    chg = (df['Status'] == 'CCCV_Chg') | (df['Status'] == 'CC_Chg')
+    chg = (df['Status'] == 'CCCV_Chg') | (df['Status'] == 'CC_Chg') |  (df['Status'] == 'CP_Chg')
     chg = (chg - chg.shift()).clip(0)
     chg.iat[0] = 1
 
