@@ -87,7 +87,7 @@ def read_ndc(file):
     # Postprocessing
     aux_df = pd.DataFrame([])
     df = df.astype(dtype=dtype_dict)
-    if identifier[0:1] == b'\x55':
+    if identifier[0:1] == b'\x65':
         aux_df = pd.DataFrame(aux, columns=['Index', 'T'])
     elif identifier[0:1] == b'\x74':
         aux_df = pd.DataFrame(aux, columns=['Index', 'V', 'T'])
