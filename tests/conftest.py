@@ -22,7 +22,7 @@ def pytest_generate_tests(metafunc):
     ref_dir = metafunc.config.getoption('--refDir')
 
     # Generate list of files to compare
-    nda_files = glob.glob(nda_dir + '/**/*.nda', recursive=True)
+    nda_files = glob.glob(nda_dir + '/**/*.nda*', recursive=True)
     ref_files = [osp.join(ref_dir, f"{osp.splitext(osp.basename(f))[0]}.ftr")
                  for f in nda_files]
 
