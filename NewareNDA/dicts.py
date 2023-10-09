@@ -32,9 +32,13 @@ state_dict = {
     9: 'CP_Chg',
     10: 'CR_DChg',
     13: 'Pause',
+    16: 'Pulse',
     17: 'SIM',
     19: 'CV_DChg',
-    20: 'CCCV_DChg'
+    20: 'CCCV_DChg',
+    21: 'Control',
+    26: 'CPCV_DChg',
+    27: 'CPCV_Chg'
 }
 
 # Define field scaling based on instrument Range setting
