@@ -2,6 +2,7 @@
 # Author: Daniel Cogswell
 # Email: danielcogswell@ses.ai
 
+import logging
 import mmap
 import struct
 import tempfile
@@ -73,6 +74,8 @@ def read_ndc(file):
                 aux.append(_aux_bytes_65_to_list_ndc(bytes))
             elif bytes[0:1] == b'\x74':
                 aux.append(_aux_bytes_74_to_list_ndc(bytes))
+            else:
+                logging.warning("Unknown record type: "+bytes[0:1].hex())
             header = mm.find(identifier, header + record_len)
 
     # Create DataFrame and sort by Index
