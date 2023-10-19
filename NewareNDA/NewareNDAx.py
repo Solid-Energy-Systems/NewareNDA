@@ -36,7 +36,9 @@ def read_ndax(file):
                 Aux = m[1]
                 aux_file = zf.extract(f, path=tmpdir)
                 _, aux_df = read_ndc(aux_file)
-                aux_df.rename(columns={'T': f'T{Aux}', 'V': f'V{Aux}'},
+                aux_df.rename(columns={'T': f'T{Aux}',
+                                       'V': f'V{Aux}',
+                                       't': f't{Aux}'},
                               inplace=True)
                 if not aux_df.empty:
                     data_df = data_df.merge(aux_df, how='left', on='Index')
@@ -93,7 +95,7 @@ def read_ndc(file):
     if identifier[0:1] == b'\x65':
         aux_df = pd.DataFrame(aux, columns=['Index', 'T'])
     elif identifier[0:1] == b'\x74':
-        aux_df = pd.DataFrame(aux, columns=['Index', 'V', 'T'])
+        aux_df = pd.DataFrame(aux, columns=['Index', 'V', 'T', 't'])
     return df, aux_df
 
 
@@ -143,6 +145,6 @@ def _aux_bytes_74_to_list_ndc(bytes):
     """Helper function for intepreting auxiliary records"""
     [Index] = struct.unpack('<I', bytes[8:12])
     [V] = struct.unpack('<i', bytes[31:35])
-    [T] = struct.unpack('<h', bytes[41:43])
+    [T, t] = struct.unpack('<hh', bytes[41:45])
 
-    return [Index, V/10000, T/10]
+    return [Index, V/10000, T/10, t/10]
