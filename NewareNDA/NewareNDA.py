@@ -83,13 +83,13 @@ def read_nda(file, software_cycle_number):
             if len(bytes) == record_len:
 
                 # Check for a data record
-                if (bytes[0:2] == b'\x55\x00'
-                        and bytes[82:87] == b'\x00\x00\x00\x00'):
+                if (bytes[0:2] == identifier[-2:]
+                        and bytes[-4:] == identifier[0:4]):
                     output.append(_bytes_to_list(bytes))
 
                 # Check for an auxiliary record
                 elif (bytes[0:1] == b'\x65'
-                      and bytes[82:87] == b'\x00\x00\x00\x00'):
+                      and bytes[-4:] == identifier[0:4]):
                     aux.append(_aux_bytes_to_list(bytes))
 
     # Create DataFrame and sort by Index
