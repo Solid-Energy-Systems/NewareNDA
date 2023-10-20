@@ -93,7 +93,7 @@ def read_ndc(file):
     aux_df = pd.DataFrame([])
     df = df.astype(dtype=dtype_dict)
     if identifier[0:1] == b'\x65':
-        aux_df = pd.DataFrame(aux, columns=['Index', 'T'])
+        aux_df = pd.DataFrame(aux, columns=['Index', 'V', 'T'])
     elif identifier[0:1] == b'\x74':
         aux_df = pd.DataFrame(aux, columns=['Index', 'V', 'T', 't'])
     return df, aux_df
@@ -137,8 +137,9 @@ def _aux_bytes_65_to_list_ndc(bytes):
     """Helper function for intepreting auxiliary records"""
     [Index] = struct.unpack('<I', bytes[8:12])
     [T] = struct.unpack('<h', bytes[41:43])
+    [V] = struct.unpack('<i', bytes[31:35])
 
-    return [Index, T/10]
+    return [Index, V/10000, T/10]
 
 
 def _aux_bytes_74_to_list_ndc(bytes):
