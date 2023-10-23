@@ -14,7 +14,7 @@ from NewareNDA.dicts import rec_columns, aux_columns, dtype_dict, \
 from .NewareNDAx import read_ndax
 
 
-def read(file, software_cycle_number=False):
+def read(file, software_cycle_number=True):
     """
     Read electrochemical data from an Neware nda or ndax binary file.
 
