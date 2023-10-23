@@ -4,9 +4,11 @@
 
 import mmap
 import struct
+import logging
 import tempfile
 import zipfile
 from datetime import datetime
+import xml.etree.ElementTree as ET
 import pandas as pd
 
 from NewareNDA.dicts import rec_columns, dtype_dict, state_dict, \
@@ -24,6 +26,20 @@ def read_ndax(file):
     """
     with tempfile.TemporaryDirectory() as tmpdir:
         zf = zipfile.PyZipFile(file)
+
+        # Read version information
+        version_info = zf.extract('VersionInfo.xml', path=tmpdir)
+        with open(version_info, 'r', encoding='gb2312') as f:
+            root = ET.fromstring(f.read())
+        server = root.find('config/ZwjVersion').attrib['SvrVer']
+        client = root.find('config/ZwjVersion').attrib['CurrClientVer']
+        logging.info(server)
+        logging.info(client)
+
+        # Check for unsupported versions
+        if int(server[14]) > 7:
+            raise NotImplementedError(f"{server} is not yet supported!")
+
         data_file = zf.extract('data.ndc', path=tmpdir)
         data_df = read_ndc(data_file)
     return data_df
