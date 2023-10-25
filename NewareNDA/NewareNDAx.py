@@ -30,18 +30,17 @@ def read_ndax(file):
         data_df, _ = read_ndc(data_file)
 
         # Read and merge Aux data from ndc files
+        aux_df = pd.DataFrame([])
         for f in zf.namelist():
             m = re.search(".*\_([0-9]+)\.ndc", f)
             if m:
-                Aux = m[1]
                 aux_file = zf.extract(f, path=tmpdir)
-                _, aux_df = read_ndc(aux_file)
-                aux_df.rename(columns={'T': f'T{Aux}',
-                                       'V': f'V{Aux}',
-                                       't': f't{Aux}'},
-                              inplace=True)
-                if not aux_df.empty:
-                    data_df = data_df.merge(aux_df, how='left', on='Index')
+                _, aux = read_ndc(aux_file)
+                aux_df = pd.concat([aux_df, aux], ignore_index=True)
+        if not aux_df.empty:
+            pvt_df = aux_df.pivot(index='Index', columns='Aux')
+            pvt_df.columns = pvt_df.columns.map(lambda x: ''.join(map(str, x)))
+            data_df = data_df.join(pvt_df, on='Index')
 
     return data_df
 
@@ -93,9 +92,9 @@ def read_ndc(file):
     aux_df = pd.DataFrame([])
     df = df.astype(dtype=dtype_dict)
     if identifier[0:1] == b'\x65':
-        aux_df = pd.DataFrame(aux, columns=['Index', 'V', 'T'])
+        aux_df = pd.DataFrame(aux, columns=['Index', 'Aux', 'V', 'T'])
     elif identifier[0:1] == b'\x74':
-        aux_df = pd.DataFrame(aux, columns=['Index', 'V', 'T', 't'])
+        aux_df = pd.DataFrame(aux, columns=['Index', 'Aux', 'V', 'T', 't'])
     return df, aux_df
 
 
@@ -135,17 +134,19 @@ def _bytes_to_list_ndc(bytes):
 
 def _aux_bytes_65_to_list_ndc(bytes):
     """Helper function for intepreting auxiliary records"""
+    [Aux] = struct.unpack('<B', bytes[3:4])
     [Index] = struct.unpack('<I', bytes[8:12])
     [T] = struct.unpack('<h', bytes[41:43])
     [V] = struct.unpack('<i', bytes[31:35])
 
-    return [Index, V/10000, T/10]
+    return [Index, Aux, V/10000, T/10]
 
 
 def _aux_bytes_74_to_list_ndc(bytes):
     """Helper function for intepreting auxiliary records"""
+    [Aux] = struct.unpack('<B', bytes[3:4])
     [Index] = struct.unpack('<I', bytes[8:12])
     [V] = struct.unpack('<i', bytes[31:35])
     [T, t] = struct.unpack('<hh', bytes[41:45])
 
-    return [Index, V/10000, T/10, t/10]
+    return [Index, Aux, V/10000, T/10, t/10]
