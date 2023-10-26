@@ -2,9 +2,9 @@
 # Author: Daniel Cogswell
 # Email: danielcogswell@ses.ai
 
-import logging
 import mmap
 import struct
+import logging
 import tempfile
 import zipfile
 import re
@@ -32,7 +32,7 @@ def read_ndax(file):
         # Read and merge Aux data from ndc files
         aux_df = pd.DataFrame([])
         for f in zf.namelist():
-            m = re.search(".*\_([0-9]+)\.ndc", f)
+            m = re.search(".*_([0-9]+)[.]ndc", f)
             if m:
                 aux_file = zf.extract(f, path=tmpdir)
                 _, aux = read_ndc(aux_file)
