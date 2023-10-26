@@ -7,6 +7,7 @@ import struct
 import logging
 import tempfile
 import zipfile
+import re
 from datetime import datetime
 import xml.etree.ElementTree as ET
 import pandas as pd
@@ -41,7 +42,21 @@ def read_ndax(file):
             raise NotImplementedError(f"{server} is not yet supported!")
 
         data_file = zf.extract('data.ndc', path=tmpdir)
-        data_df = read_ndc(data_file)
+        data_df, _ = read_ndc(data_file)
+
+        # Read and merge Aux data from ndc files
+        aux_df = pd.DataFrame([])
+        for f in zf.namelist():
+            m = re.search(".*_([0-9]+)[.]ndc", f)
+            if m:
+                aux_file = zf.extract(f, path=tmpdir)
+                _, aux = read_ndc(aux_file)
+                aux_df = pd.concat([aux_df, aux], ignore_index=True)
+        if not aux_df.empty:
+            pvt_df = aux_df.pivot(index='Index', columns='Aux')
+            pvt_df.columns = pvt_df.columns.map(lambda x: ''.join(map(str, x)))
+            data_df = data_df.join(pvt_df, on='Index')
+
     return data_df
 
 
@@ -53,6 +68,7 @@ def read_ndc(file):
         file (str): Name of an .ndc file to read
     Returns:
         df (pd.DataFrame): DataFrame containing all records in the file
+        aux_df (pd.DataFrame): DataFrame containing any temperature data
     """
     with open(file, 'rb') as f:
         mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
@@ -64,10 +80,18 @@ def read_ndc(file):
 
         # Read data records
         output = []
+        aux = []
         while header != -1:
             mm.seek(header)
             bytes = mm.read(record_len)
-            output.append(_bytes_to_list_ndc(bytes))
+            if bytes[0:1] == b'\x55':
+                output.append(_bytes_to_list_ndc(bytes))
+            elif bytes[0:1] == b'\x65':
+                aux.append(_aux_bytes_65_to_list_ndc(bytes))
+            elif bytes[0:1] == b'\x74':
+                aux.append(_aux_bytes_74_to_list_ndc(bytes))
+            else:
+                logging.warning("Unknown record type: "+bytes[0:1].hex())
             header = mm.find(identifier, header + record_len)
 
     # Create DataFrame and sort by Index
@@ -80,8 +104,13 @@ def read_ndc(file):
     df.reset_index(drop=True, inplace=True)
 
     # Postprocessing
+    aux_df = pd.DataFrame([])
     df = df.astype(dtype=dtype_dict)
-    return df
+    if identifier[0:1] == b'\x65':
+        aux_df = pd.DataFrame(aux, columns=['Index', 'Aux', 'V', 'T'])
+    elif identifier[0:1] == b'\x74':
+        aux_df = pd.DataFrame(aux, columns=['Index', 'Aux', 'V', 'T', 't'])
+    return df, aux_df
 
 
 def _bytes_to_list_ndc(bytes):
@@ -116,3 +145,23 @@ def _bytes_to_list_ndc(bytes):
         datetime(Y, M, D, h, m, s)
     ]
     return list
+
+
+def _aux_bytes_65_to_list_ndc(bytes):
+    """Helper function for intepreting auxiliary records"""
+    [Aux] = struct.unpack('<B', bytes[3:4])
+    [Index] = struct.unpack('<I', bytes[8:12])
+    [T] = struct.unpack('<h', bytes[41:43])
+    [V] = struct.unpack('<i', bytes[31:35])
+
+    return [Index, Aux, V/10000, T/10]
+
+
+def _aux_bytes_74_to_list_ndc(bytes):
+    """Helper function for intepreting auxiliary records"""
+    [Aux] = struct.unpack('<B', bytes[3:4])
+    [Index] = struct.unpack('<I', bytes[8:12])
+    [V] = struct.unpack('<i', bytes[31:35])
+    [T, t] = struct.unpack('<hh', bytes[41:45])
+
+    return [Index, Aux, V/10000, T/10, t/10]
