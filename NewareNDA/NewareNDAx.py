@@ -38,26 +38,53 @@ def read_ndax(file):
         logging.info(client)
 
         # Check for unsupported versions
-        if int(server[14]) > 7:
+        if int(server[14]) > 8:
             raise NotImplementedError(f"{server} is not yet supported!")
 
         data_file = zf.extract('data.ndc', path=tmpdir)
-        data_df, _ = read_ndc(data_file)
 
-        # Read and merge Aux data from ndc files
-        aux_df = pd.DataFrame([])
-        for f in zf.namelist():
-            m = re.search(".*_([0-9]+)[.]ndc", f)
-            if m:
-                aux_file = zf.extract(f, path=tmpdir)
-                _, aux = read_ndc(aux_file)
-                aux_df = pd.concat([aux_df, aux], ignore_index=True)
-        if not aux_df.empty:
-            pvt_df = aux_df.pivot(index='Index', columns='Aux')
-            pvt_df.columns = pvt_df.columns.map(lambda x: ''.join(map(str, x)))
-            data_df = data_df.join(pvt_df, on='Index')
+        if int(server[14]) > 7:
+            data_df = read_ndc_8(data_file)
+        else:
+            data_df, _ = read_ndc(data_file)
+
+            # Read and merge Aux data from ndc files
+            aux_df = pd.DataFrame([])
+            for f in zf.namelist():
+                m = re.search(".*_([0-9]+)[.]ndc", f)
+                if m:
+                    aux_file = zf.extract(f, path=tmpdir)
+                    _, aux = read_ndc(aux_file)
+                    aux_df = pd.concat([aux_df, aux], ignore_index=True)
+            if not aux_df.empty:
+                pvt_df = aux_df.pivot(index='Index', columns='Aux')
+                pvt_df.columns = pvt_df.columns.map(lambda x: ''.join(map(str, x)))
+                data_df = data_df.join(pvt_df, on='Index')
 
     return data_df
+
+
+def read_ndc_8(file):
+    with open(file, 'rb') as f:
+        mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
+        mm_size = mm.size()
+
+        # Identify the beginning of the data section
+        record_len = 4096
+        header = 4096
+
+        # Read data records
+        rec = []
+        mm.seek(header)
+        while mm.tell() < mm_size:
+            bytes = mm.read(record_len)
+            for i in struct.iter_unpack('<ff', bytes[132:-4]):
+                rec.append([i[0]/10000, i[1]])
+
+    # Create DataFrame
+    df = pd.DataFrame(rec, columns=['Voltage', 'Current(mA)'])
+    df['Index'] = df.index + 1
+    return df
 
 
 def read_ndc(file):
