@@ -12,6 +12,7 @@ from datetime import datetime
 import xml.etree.ElementTree as ET
 import pandas as pd
 
+import NewareNDA.NewareNDA
 from NewareNDA.dicts import rec_columns, dtype_dict, state_dict, \
      multiplier_dict
 
@@ -45,6 +46,17 @@ def read_ndax(file):
 
         if int(server[14]) > 7:
             data_df = read_ndc_8(data_file)
+
+            runInfo_file = zf.extract('data_runInfo.ndc', path=tmpdir)
+            runInfo_df = read_data_runInfo_ndc8(runInfo_file)
+            data_df = data_df[data_df['Index'] <= runInfo_df['Index'].iat[-1]]
+            data_df = data_df.merge(runInfo_df, how='left', on='Index')
+
+            # Fill in missing data
+            data_df['Step'].ffill(inplace=True)
+            data_df['Time'].interpolate(method='linear', inplace=True)
+            data_df['Timestamp'] = data_df['Timestamp'].interpolate(
+                method='linear').astype(int).map(datetime.fromtimestamp)
         else:
             data_df, _ = read_ndc(data_file)
 
@@ -84,6 +96,32 @@ def read_ndc_8(file):
     # Create DataFrame
     df = pd.DataFrame(rec, columns=['Voltage', 'Current(mA)'])
     df['Index'] = df.index + 1
+    return df
+
+
+def read_data_runInfo_ndc8(file):
+    with open(file, 'rb') as f:
+        mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
+        mm_size = mm.size()
+
+        # Identify the beginning of the data section
+        record_len = 4096
+        header = 4096
+
+        # Read data records
+        rec = []
+        mm.seek(header)
+        while mm.tell() < mm_size:
+            bytes = mm.read(record_len)
+            for i in struct.iter_unpack('<i29siii2s', bytes[132:-63]):
+                [Time, Timestamp, Step, Index] = [i[0], i[2], i[3], i[4]]
+                if Index != 0:
+                    rec.append([Time/1000, Timestamp, Step, Index])
+
+    # Create DataFrame
+    df = pd.DataFrame(rec, columns=['Time', 'Timestamp', 'Step', 'Index'])
+    df['Step'] = NewareNDA.NewareNDA._count_changes(df['Step'])
+
     return df
 
 
