@@ -57,6 +57,10 @@ def read_ndax(file):
             data_df['Time'].interpolate(method='linear', inplace=True)
             data_df['Timestamp'] = data_df['Timestamp'].interpolate(
                 method='linear').astype(int).map(datetime.fromtimestamp)
+
+            step_file = zf.extract('data_step.ndc', path=tmpdir)
+            step_df = read_data_step_ndc8(step_file)
+            data_df = data_df.merge(step_df, how='left', on='Step')
         else:
             data_df, _ = read_ndc(data_file)
 
@@ -122,6 +126,31 @@ def read_data_runInfo_ndc8(file):
     df = pd.DataFrame(rec, columns=['Time', 'Timestamp', 'Step', 'Index'])
     df['Step'] = NewareNDA.NewareNDA._count_changes(df['Step'])
 
+    return df
+
+
+def read_data_step_ndc8(file):
+    with open(file, 'rb') as f:
+        mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
+        mm_size = mm.size()
+
+        # Identify the beginning of the data section
+        record_len = 4096
+        header = 4096
+
+        # Read data records
+        rec = []
+        mm.seek(header)
+        while mm.tell() < mm_size:
+            bytes = mm.read(record_len)
+            for i in struct.iter_unpack('<ii16sb12s', bytes[132:-5]):
+                [Cycle, Step_Index, Status] = [i[0], i[1], i[3]]
+                if Step_Index != 0:
+                    rec.append([Cycle+1, Step_Index, state_dict[Status]])
+
+    # Create DataFrame
+    df = pd.DataFrame(rec, columns=['Cycle', 'Step_Index', 'Status'])
+    df['Step'] = df.index + 1
     return df
 
 
