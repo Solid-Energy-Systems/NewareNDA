@@ -163,6 +163,34 @@ def _bytes_to_list(bytes):
     return list
 
 
+def _bytes_to_list_BTS9(bytes):
+    """Helper function to interpret byte strings from BTS9"""
+    [Step, Status] = struct.unpack('<BB', bytes[5:7])
+    [Index] = struct.unpack('<I', bytes[12:16])
+    [Time] = struct.unpack('<Q', bytes[24:32])
+    [Voltage, Current] = struct.unpack('<ff', bytes[32:40])
+    [Charge_Capacity, Charge_Energy] = struct.unpack('<ff', bytes[48:56])
+    [Discharge_Capacity, Discharge_Energy] = struct.unpack('<ff', bytes[56:64])
+    [Date] = struct.unpack('<Q', bytes[64:72])
+
+    # Create a dictionary for the record
+    list = [
+        Index,
+        0,
+        Step,
+        state_dict[Status],
+        Time/1e6,
+        Voltage,
+        Current,
+        Charge_Capacity/3600,
+        Discharge_Capacity/3600,
+        Charge_Energy/3600,
+        Discharge_Energy/3600,
+        datetime.fromtimestamp(Date/1e6)
+    ]
+    return list
+
+
 def _aux_bytes_to_list(bytes):
     """Helper function for intepreting auxiliary records"""
     [Aux, Index] = struct.unpack('<BI', bytes[1:6])
