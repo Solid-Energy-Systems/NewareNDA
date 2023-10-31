@@ -50,6 +50,10 @@ def read_nda(file, software_cycle_number):
         if mm.read(6) != b'NEWARE':
             raise ValueError(f"{file} does not appear to be a Neware file.")
 
+        # Get the file version
+        [nda_version] = struct.unpack('<B', mm[14:15])
+        logging.info(f"NDA version: {nda_version}")
+
         # Try to find server and client version info
         version_loc = mm.find(b'BTSServer')
         if version_loc != -1:
@@ -60,7 +64,7 @@ def read_nda(file, software_cycle_number):
             client = mm.read(50).strip(b'\x00').decode()
             logging.info(f"Client: {client}")
         else:
-            logging.info("File version not found!")
+            logging.info("BTS version not found!")
 
         # Identify the beginning of the data section
         record_len = 86
