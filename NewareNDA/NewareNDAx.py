@@ -43,12 +43,49 @@ def read_ndc(file):
 
         # Identify the beginning of the data section
         record_len = 94
-        offset = 0
+        header = 517
         identifier = mm[517:525]
         if identifier == b'\x00\x00\x00\x00\x00\x00\x00\x00':
-            record_len = 90
-            offset = 4
-            identifier = b'\x00\x00\x00\x55'
+            return read_ndc8(file)
+
+        # Read data records
+        output = []
+        while header != -1:
+            mm.seek(header)
+            bytes = mm.read(record_len)
+            output.append(_bytes_to_list_ndc(bytes))
+            header = mm.find(identifier, header + record_len)
+
+    # Create DataFrame and sort by Index
+    df = pd.DataFrame(output, columns=rec_columns)
+    df.drop_duplicates(subset='Index', inplace=True)
+
+    if not df['Index'].is_monotonic_increasing:
+        df.sort_values('Index', inplace=True)
+
+    df.reset_index(drop=True, inplace=True)
+
+    # Postprocessing
+    df = df.astype(dtype=dtype_dict)
+    return df
+
+
+def read_ndc8(file):
+    """
+    Function to read electrochemical data from a BTS8 ndc file.
+
+    Args:
+        file (str): Name of an .ndc file to read
+    Returns:
+        df (pd.DataFrame): DataFrame containing all records in the file
+    """
+    with open(file, 'rb') as f:
+        mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
+
+        # Identify the beginning of the data section
+        record_len = 90
+        offset = 4
+        identifier = b'\x00\x00\x00\x55'
 
         # Read data records
         output = []
