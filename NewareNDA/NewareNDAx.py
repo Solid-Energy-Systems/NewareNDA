@@ -44,7 +44,8 @@ def read_ndax(file):
 
         data_file = zf.extract('data.ndc', path=tmpdir)
 
-        if int(server[14]) > 7:
+        # Check if data_runInfo.ndc and data_step.ndc exist
+        if all(i in zf.namelist() for i in ['data_runInfo.ndc', 'data_step.ndc']):
             data_df = read_ndc_8(data_file)
 
             runInfo_file = zf.extract('data_runInfo.ndc', path=tmpdir)
