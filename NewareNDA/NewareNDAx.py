@@ -248,7 +248,7 @@ def read_ndc8(file):
 
     # Postprocessing
     df = df.astype(dtype=dtype_dict)
-    return df
+    return df, pd.DataFrame([])
 
 
 def _valid_record(bytes):
