@@ -61,7 +61,9 @@ def read_ndax(file):
 
             step_file = zf.extract('data_step.ndc', path=tmpdir)
             step_df = read_data_step_ndc8(step_file)
-            data_df = data_df.merge(step_df, how='left', on='Step')
+            data_df = data_df.merge(step_df, how='left', on='Step').reindex(
+                columns=rec_columns)
+
         else:
             data_df, _ = read_ndc(data_file)
 
