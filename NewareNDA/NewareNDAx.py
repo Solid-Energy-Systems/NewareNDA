@@ -227,16 +227,25 @@ def read_ndc8(file):
         # Identify the beginning of the data section
         record_len = 90
         offset = 4
-        identifier = b'\x00\x00\x00\x55'
+        identifier = mm[4225:4229]
 
         # Read data records
         output = []
+        aux = []
         header = mm.find(identifier)
         while header != -1:
             mm.seek(header - offset)
             bytes = mm.read(record_len)
             if _valid_record(bytes):
-                output.append(_bytes_to_list_ndc(bytes))
+                if bytes[7:8] == b'\x55':
+                    output.append(_bytes_to_list_ndc(bytes))
+                elif bytes[7:8] == b'\x65':
+                    aux.append(_aux_bytes_65_to_list_ndc(bytes))
+                elif bytes[7:8] == b'\x74':
+                    aux.append(_aux_bytes_74_to_list_ndc(bytes))
+                else:
+                    logging.warning("Unknown record type: "+bytes[0:1].hex())
+
             header = mm.find(identifier, header - offset + record_len)
 
     # Create DataFrame and sort by Index
@@ -249,8 +258,13 @@ def read_ndc8(file):
     df.reset_index(drop=True, inplace=True)
 
     # Postprocessing
+    aux_df = pd.DataFrame([])
     df = df.astype(dtype=dtype_dict)
-    return df, pd.DataFrame([])
+    if identifier[3:4] == b'\x65':
+        aux_df = pd.DataFrame(aux, columns=['Index', 'Aux', 'V', 'T'])
+    elif identifier[3:4] == b'\x74':
+        aux_df = pd.DataFrame(aux, columns=['Index', 'Aux', 'V', 'T', 't'])
+    return df, aux_df
 
 
 def _valid_record(bytes):
