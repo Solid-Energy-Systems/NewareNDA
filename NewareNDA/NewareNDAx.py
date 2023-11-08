@@ -54,7 +54,7 @@ def read_ndax(file):
             data_df = data_df.merge(runInfo_df, how='left', on='Index')
 
             # Fill in missing data
-            data_df['Step'].ffill(inplace=True)
+            data_df['Step'] = data_df['Step'].ffill().astype(int)
             data_df['Time'].interpolate(method='linear', inplace=True)
             data_df['Timestamp'] = data_df['Timestamp'].interpolate(
                 method='linear').astype(int).map(datetime.fromtimestamp)
