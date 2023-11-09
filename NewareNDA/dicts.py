@@ -3,6 +3,9 @@ rec_columns = [
     'Index', 'Cycle', 'Step', 'Status', 'Time', 'Voltage',
     'Current(mA)', 'Charge_Capacity(mAh)', 'Discharge_Capacity(mAh)',
     'Charge_Energy(mWh)', 'Discharge_Energy(mWh)', 'Timestamp']
+rec_columns_BTS8 = [
+    'Index', 'Cycle', 'Step', 'Status', 'Time', 'Voltage',
+    'Current(mA)', 'Capacity(mAh)', 'Energy(mWh)', 'Timestamp']
 aux_columns = ['Index', 'Aux', 'T']
 
 # Define precision of fields

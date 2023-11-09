@@ -13,8 +13,8 @@ import xml.etree.ElementTree as ET
 import pandas as pd
 
 import NewareNDA.NewareNDA
-from NewareNDA.dicts import rec_columns, dtype_dict, state_dict, \
-     multiplier_dict
+from NewareNDA.dicts import rec_columns, rec_columns_BTS8, dtype_dict, \
+    state_dict, multiplier_dict
 
 
 def read_ndax(file):
@@ -55,14 +55,14 @@ def read_ndax(file):
 
             # Fill in missing data
             data_df['Step'] = data_df['Step'].ffill().astype(int)
-            data_df['Time'].interpolate(method='linear', inplace=True)
-            data_df['Timestamp'] = data_df['Timestamp'].interpolate(
-                method='linear').astype(int).map(datetime.fromtimestamp)
+            data_df.interpolate(method='linear', inplace=True)
+            data_df['Timestamp'] = data_df['Timestamp'].astype(int).map(
+                datetime.fromtimestamp)
 
             step_file = zf.extract('data_step.ndc', path=tmpdir)
             step_df = read_data_step_ndc8(step_file)
             data_df = data_df.merge(step_df, how='left', on='Step').reindex(
-                columns=rec_columns)
+                columns=rec_columns_BTS8)
 
         else:
             data_df, _ = read_ndc(data_file)
@@ -120,13 +120,16 @@ def read_data_runInfo_ndc8(file):
         mm.seek(header)
         while mm.tell() < mm_size:
             bytes = mm.read(record_len)
-            for i in struct.iter_unpack('<i29siii2s', bytes[132:-63]):
-                [Time, Timestamp, Step, Index] = [i[0], i[2], i[3], i[4]]
+            for i in struct.iter_unpack('<isf4sf16siii2s', bytes[132:-63]):
+                [Time, Capacity, Energy] = [i[0], i[2], i[4]]
+                [Timestamp, Step, Index] = [i[6], i[7], i[8]]
                 if Index != 0:
-                    rec.append([Time/1000, Timestamp, Step, Index])
+                    rec.append([Time/1000, Capacity/3600, Energy/3600,
+                                Timestamp, Step, Index])
 
     # Create DataFrame
-    df = pd.DataFrame(rec, columns=['Time', 'Timestamp', 'Step', 'Index'])
+    df = pd.DataFrame(rec, columns=['Time', 'Capacity(mAh)', 'Energy(mWh)',
+                                    'Timestamp', 'Step', 'Index'])
     df['Step'] = NewareNDA.NewareNDA._count_changes(df['Step'])
 
     return df
