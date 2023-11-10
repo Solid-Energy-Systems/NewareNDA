@@ -66,9 +66,17 @@ def read_nda(file, software_cycle_number):
         else:
             logging.info("BTS version not found!")
 
+        # version specific settings
+        if nda_version < 130:
+            record_len = 86
+            identifier = b'\x00\x00\x00\x00\x55\x00'
+            byte_func = _bytes_to_list
+        else:
+            record_len = 88
+            identifier = b'\x1d\xf0\x00\x06\x55\x81'
+            byte_func = _bytes_to_list_BTS9
+
         # Identify the beginning of the data section
-        record_len = 86
-        identifier = b'\x00\x00\x00\x00\x55\x00'
         header = mm.find(identifier)
         if header == -1:
             raise EOFError(f"File {file} does not contain any valid records.")
@@ -87,13 +95,11 @@ def read_nda(file, software_cycle_number):
             if len(bytes) == record_len:
 
                 # Check for a data record
-                if (bytes[0:2] == identifier[-2:]
-                        and bytes[-4:] == identifier[0:4]):
-                    output.append(_bytes_to_list(bytes))
+                if bytes[0:2] == identifier[-2:]:
+                    output.append(byte_func(bytes))
 
                 # Check for an auxiliary record
-                elif (bytes[0:1] == b'\x65'
-                      and bytes[-4:] == identifier[0:4]):
+                elif bytes[0:1] == b'\x65':
                     aux.append(_aux_bytes_to_list(bytes))
 
     # Create DataFrame and sort by Index
