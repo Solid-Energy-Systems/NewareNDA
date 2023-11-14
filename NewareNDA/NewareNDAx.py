@@ -31,16 +31,15 @@ def read_ndax(file):
 
         # Read version information
         version_info = zf.extract('VersionInfo.xml', path=tmpdir)
-        with open(version_info, 'r', encoding='gb2312') as f:
-            root = ET.fromstring(f.read())
-        server = root.find('config/ZwjVersion').attrib['SvrVer']
-        client = root.find('config/ZwjVersion').attrib['CurrClientVer']
-        logging.info(server)
-        logging.info(client)
-
-        # Check for unsupported versions
-        if int(server[14]) > 8:
-            raise NotImplementedError(f"{server} is not yet supported!")
+        try:
+            with open(version_info, 'r', encoding='gb2312') as f:
+                root = ET.fromstring(f.read())
+            server = root.find('config/ZwjVersion').attrib['SvrVer']
+            client = root.find('config/ZwjVersion').attrib['CurrClientVer']
+            logging.info(server)
+            logging.info(client)
+        except Exception:
+            pass
 
         data_file = zf.extract('data.ndc', path=tmpdir)
 
