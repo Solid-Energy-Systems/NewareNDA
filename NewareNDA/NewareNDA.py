@@ -85,7 +85,7 @@ def read_nda(file, software_cycle_number):
                if header + 4 + record_len < mm_size
                else False):
             header = mm.find(identifier, header + 4)
-        mm.seek(header + 4)
+        mm.seek(header)
 
         # Read data records
         output = []
@@ -95,12 +95,12 @@ def read_nda(file, software_cycle_number):
             if len(bytes) == record_len:
 
                 # Check for a data record
-                if bytes[0:2] == identifier[-2:]:
-                    output.append(byte_func(bytes))
+                if bytes[0:6] == identifier:
+                    output.append(byte_func(bytes[4:]))
 
                 # Check for an auxiliary record
-                elif bytes[0:1] == b'\x65':
-                    aux.append(_aux_bytes_to_list(bytes))
+                elif bytes[0:5] == b'\x00\x00\x00\x00\x65':
+                    aux.append(_aux_bytes_to_list(bytes[4:]))
 
     # Create DataFrame and sort by Index
     df = pd.DataFrame(output, columns=rec_columns)
