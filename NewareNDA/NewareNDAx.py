@@ -73,6 +73,7 @@ def read_ndax(file):
                 if m:
                     aux_file = zf.extract(f, path=tmpdir)
                     _, aux = read_ndc(aux_file)
+                    aux['Aux'] = int(m[1])
                     aux_df = pd.concat([aux_df, aux], ignore_index=True)
             if not aux_df.empty:
                 pvt_df = aux_df.pivot(index='Index', columns='Aux')
