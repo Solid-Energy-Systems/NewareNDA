@@ -13,8 +13,8 @@ import xml.etree.ElementTree as ET
 import pandas as pd
 
 import NewareNDA.NewareNDA
-from NewareNDA.dicts import rec_columns, rec_columns_BTS8, dtype_dict, \
-    state_dict, multiplier_dict
+from NewareNDA.dicts import rec_columns, dtype_dict, state_dict, \
+     multiplier_dict
 
 
 def read_ndax(file):
@@ -61,7 +61,7 @@ def read_ndax(file):
             step_file = zf.extract('data_step.ndc', path=tmpdir)
             step_df = read_data_step_ndc8(step_file)
             data_df = data_df.merge(step_df, how='left', on='Step').reindex(
-                columns=rec_columns_BTS8)
+                columns=rec_columns)
 
         else:
             data_df, _ = read_ndc(data_file)
@@ -120,16 +120,23 @@ def read_data_runInfo_ndc8(file):
         mm.seek(header)
         while mm.tell() < mm_size:
             bytes = mm.read(record_len)
-            for i in struct.iter_unpack('<isf4sf16siii2s', bytes[132:-63]):
-                [Time, Capacity, Energy] = [i[0], i[2], i[4]]
-                [Timestamp, Step, Index] = [i[6], i[7], i[8]]
+            for i in struct.iter_unpack('<isffff12siii2s', bytes[132:-63]):
+                Time = i[0]
+                [Charge_Capacity, Discharge_Capacity] = [i[2], i[3]]
+                [Charge_Energy, Discharge_Energy] = [i[4], i[5]]
+                [Timestamp, Step, Index] = [i[7], i[8], i[9]]
                 if Index != 0:
-                    rec.append([Time/1000, Capacity/3600, Energy/3600,
+                    rec.append([Time/1000,
+                                Charge_Capacity/3600, Discharge_Capacity/3600,
+                                Charge_Energy/3600, Discharge_Energy/3600,
                                 Timestamp, Step, Index])
 
     # Create DataFrame
-    df = pd.DataFrame(rec, columns=['Time', 'Capacity(mAh)', 'Energy(mWh)',
-                                    'Timestamp', 'Step', 'Index'])
+    df = pd.DataFrame(rec, columns=[
+        'Time',
+        'Charge_Capacity(mAh)', 'Discharge_Capacity(mAh)',
+        'Charge_Energy(mWh)', 'Discharge_Energy(mWh)',
+        'Timestamp', 'Step', 'Index'])
     df['Step'] = NewareNDA.NewareNDA._count_changes(df['Step'])
 
     return df
