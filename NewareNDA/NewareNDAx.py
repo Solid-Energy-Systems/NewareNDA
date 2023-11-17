@@ -182,62 +182,15 @@ def read_ndc(file):
 
         # Identify the beginning of the data section
         record_len = 94
-        header = 517
         identifier = mm[517:525]
+        id_byte = slice(0, 1)
+        rec_byte = slice(0, 1)
         if identifier == b'\x00\x00\x00\x00\x00\x00\x00\x00':
-            return read_ndc8(file)
-
-        # Read data records
-        output = []
-        aux = []
-        while header != -1:
-            mm.seek(header)
-            bytes = mm.read(record_len)
-            if bytes[0:1] == b'\x55':
-                output.append(_bytes_to_list_ndc(bytes))
-            elif bytes[0:1] == b'\x65':
-                aux.append(_aux_bytes_65_to_list_ndc(bytes))
-            elif bytes[0:1] == b'\x74':
-                aux.append(_aux_bytes_74_to_list_ndc(bytes))
-            else:
-                logging.warning("Unknown record type: "+bytes[0:1].hex())
-            header = mm.find(identifier, header + record_len)
-
-    # Create DataFrame and sort by Index
-    df = pd.DataFrame(output, columns=rec_columns)
-    df.drop_duplicates(subset='Index', inplace=True)
-
-    if not df['Index'].is_monotonic_increasing:
-        df.sort_values('Index', inplace=True)
-
-    df.reset_index(drop=True, inplace=True)
-
-    # Postprocessing
-    aux_df = pd.DataFrame([])
-    df = df.astype(dtype=dtype_dict)
-    if identifier[0:1] == b'\x65':
-        aux_df = pd.DataFrame(aux, columns=['Index', 'Aux', 'V', 'T'])
-    elif identifier[0:1] == b'\x74':
-        aux_df = pd.DataFrame(aux, columns=['Index', 'Aux', 'V', 'T', 't'])
-    return df, aux_df
-
-
-def read_ndc8(file):
-    """
-    Function to read electrochemical data from a BTS8 ndc file.
-
-    Args:
-        file (str): Name of an .ndc file to read
-    Returns:
-        df (pd.DataFrame): DataFrame containing all records in the file
-    """
-    with open(file, 'rb') as f:
-        mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
-
-        # Identify the beginning of the data section
-        record_len = 90
-        offset = 4
-        identifier = mm[4225:4229]
+            record_len = 90
+            offset = 4
+            identifier = mm[4225:4229]
+            id_byte = slice(3, 4)
+            rec_byte = slice(7, 8)
 
         # Read data records
         output = []
@@ -247,14 +200,14 @@ def read_ndc8(file):
             mm.seek(header - offset)
             bytes = mm.read(record_len)
             if _valid_record(bytes):
-                if bytes[7:8] == b'\x55':
+                if bytes[rec_byte] == b'\x55':
                     output.append(_bytes_to_list_ndc(bytes))
-                elif bytes[7:8] == b'\x65':
+                elif bytes[rec_byte] == b'\x65':
                     aux.append(_aux_bytes_65_to_list_ndc(bytes))
-                elif bytes[7:8] == b'\x74':
+                elif bytes[rec_byte] == b'\x74':
                     aux.append(_aux_bytes_74_to_list_ndc(bytes))
                 else:
-                    logging.warning("Unknown record type: "+bytes[0:1].hex())
+                    logging.warning("Unknown record type: "+bytes[rec_byte].hex())
 
             header = mm.find(identifier, header - offset + record_len)
 
@@ -270,9 +223,9 @@ def read_ndc8(file):
     # Postprocessing
     aux_df = pd.DataFrame([])
     df = df.astype(dtype=dtype_dict)
-    if identifier[3:4] == b'\x65':
+    if identifier[id_byte] == b'\x65':
         aux_df = pd.DataFrame(aux, columns=['Index', 'Aux', 'V', 'T'])
-    elif identifier[3:4] == b'\x74':
+    elif identifier[id_byte] == b'\x74':
         aux_df = pd.DataFrame(aux, columns=['Index', 'Aux', 'V', 'T', 't'])
     return df, aux_df
 
