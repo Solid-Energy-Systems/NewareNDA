@@ -78,6 +78,10 @@ def read_ndc(file):
     with open(file, 'rb') as f:
         mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
 
+        # Get ndc file version
+        [ndc_version] = struct.unpack('<B', mm[2:3])
+        logging.info(f"NDC version: {ndc_version}")
+
         # Identify the beginning of the data section
         record_len = 94
         header = 517
