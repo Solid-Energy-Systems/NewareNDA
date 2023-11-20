@@ -12,16 +12,18 @@ from datetime import datetime
 import xml.etree.ElementTree as ET
 import pandas as pd
 
+import NewareNDA.NewareNDA
 from NewareNDA.dicts import rec_columns, dtype_dict, state_dict, \
      multiplier_dict
 
 
-def read_ndax(file):
+def read_ndax(file, software_cycle_number=False):
     """
     Function to read electrochemical data from a Neware ndax binary file.
 
     Args:
         file (str): Name of an .ndax file to read
+        software_cycle_number (bool): Regenerate the cycle number field
     Returns:
         df (pd.DataFrame): DataFrame containing all records in the file
     """
@@ -56,6 +58,9 @@ def read_ndax(file):
             pvt_df = aux_df.pivot(index='Index', columns='Aux')
             pvt_df.columns = pvt_df.columns.map(lambda x: ''.join(map(str, x)))
             data_df = data_df.join(pvt_df, on='Index')
+
+    if software_cycle_number:
+        data_df['Cycle'] = NewareNDA.NewareNDA._generate_cycle_number(data_df)
 
     return data_df
 
