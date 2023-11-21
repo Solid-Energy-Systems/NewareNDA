@@ -43,23 +43,28 @@ def read_ndax(file):
 
         data_file = zf.extract('data.ndc', path=tmpdir)
 
+        # Some ndax have data spread across 3 different ndc files. Others have
+        # all data in data.ndc.
         # Check if data_runInfo.ndc and data_step.ndc exist
         if all(i in zf.namelist() for i in ['data_runInfo.ndc', 'data_step.ndc']):
-            data_df = read_ndc_8(data_file)
 
+            # Read data from separate files
             runInfo_file = zf.extract('data_runInfo.ndc', path=tmpdir)
-            runInfo_df = read_data_runInfo_ndc8(runInfo_file)
+            step_file = zf.extract('data_step.ndc', path=tmpdir)
+            data_df = _read_data_ndc(data_file)
+            runInfo_df = _read_data_runInfo_ndc(runInfo_file)
+            step_df = _read_data_step_ndc(step_file)
+
+            # Merge dataframes
             data_df = data_df[data_df['Index'] <= runInfo_df['Index'].iat[-1]]
             data_df = data_df.merge(runInfo_df, how='left', on='Index')
 
-            # Fill in missing data
+            # Fill in missing data - Neware appears to fabricate data
             data_df['Step'] = data_df['Step'].ffill().astype(int)
             data_df.interpolate(method='linear', inplace=True)
             data_df['Timestamp'] = data_df['Timestamp'].astype(int).map(
                 datetime.fromtimestamp)
 
-            step_file = zf.extract('data_step.ndc', path=tmpdir)
-            step_df = read_data_step_ndc8(step_file)
             data_df = data_df.merge(step_df, how='left', on='Step').reindex(
                 columns=rec_columns)
 
@@ -83,7 +88,7 @@ def read_ndax(file):
     return data_df
 
 
-def read_ndc_8(file):
+def _read_data_ndc(file):
     with open(file, 'rb') as f:
         mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
         mm_size = mm.size()
@@ -106,7 +111,7 @@ def read_ndc_8(file):
     return df
 
 
-def read_data_runInfo_ndc8(file):
+def _read_data_runInfo_ndc(file):
     with open(file, 'rb') as f:
         mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
         mm_size = mm.size()
@@ -142,7 +147,7 @@ def read_data_runInfo_ndc8(file):
     return df
 
 
-def read_data_step_ndc8(file):
+def _read_data_step_ndc(file):
     with open(file, 'rb') as f:
         mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
         mm_size = mm.size()
