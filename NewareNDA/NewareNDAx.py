@@ -187,6 +187,7 @@ def read_ndc(file):
 
         # Identify the beginning of the data section
         record_len = 94
+        offset = 0
         identifier = mm[517:525]
         id_byte = slice(0, 1)
         rec_byte = slice(0, 1)
