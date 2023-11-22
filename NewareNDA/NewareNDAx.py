@@ -62,7 +62,7 @@ def read_ndax(file, software_cycle_number=False):
     if software_cycle_number:
         data_df['Cycle'] = NewareNDA.NewareNDA._generate_cycle_number(data_df)
 
-    return data_df
+    return data_df.astype(dtype=dtype_dict)
 
 
 def read_ndc(file):
