@@ -61,9 +61,7 @@ def read_ndax(file):
 
             # Fill in missing data - Neware appears to fabricate data
             data_df['Step'] = data_df['Step'].ffill().astype(int)
-            data_df.interpolate(method='linear', inplace=True)
-            data_df['Timestamp'] = data_df['Timestamp'].astype(int).map(
-                datetime.fromtimestamp)
+            _data_interpolation(data_df)
 
             data_df = data_df.merge(step_df, how='left', on='Step').reindex(
                 columns=rec_columns)
@@ -86,6 +84,40 @@ def read_ndax(file):
                 data_df = data_df.join(pvt_df, on='Index')
 
     return data_df
+
+
+def _data_interpolation(df):
+    """
+    Some ndax from from BTS Server 8 do not seem to contain a complete dataset.
+    This helper function fills in missing times, capacities, and energies.
+    """
+    # Perform a linear interpolation of Time and Timestamp
+    df['Time'].interpolate(inplace=True)
+    df['Timestamp'] = df['Timestamp'].interpolate().astype(int).map(
+        datetime.fromtimestamp)
+
+    # Identify the valid data
+    nan_mask = df['Charge_Capacity(mAh)'].notnull()
+
+    # Integrate to get capacity and fill missing values
+    capacity = df['Time'].diff()*df['Current(mA)']/3600
+    inc = capacity.groupby(nan_mask.cumsum()).cumsum()
+    chg = df['Charge_Capacity(mAh)'].ffill() + \
+        inc.where(df['Current(mA)'] > 0, 0).shift()
+    dch = df['Discharge_Capacity(mAh)'].ffill() + \
+        inc.where(df['Current(mA)'] < 0, 0).shift()
+    df['Charge_Capacity(mAh)'].where(nan_mask, chg, inplace=True)
+    df['Discharge_Capacity(mAh)'].where(nan_mask, dch, inplace=True)
+
+    # Integrate to get energy and fill missing values
+    energy = capacity*df['Voltage']
+    inc = energy.groupby(nan_mask.cumsum()).cumsum()
+    chg = df['Charge_Energy(mWh)'].ffill() + \
+        inc.where(df['Current(mA)'] > 0, 0).shift()
+    dch = df['Discharge_Energy(mWh)'].ffill() + \
+        inc.where(df['Current(mA)'] < 0, 0).shift()
+    df['Charge_Energy(mWh)'].where(nan_mask, chg, inplace=True)
+    df['Discharge_Energy(mWh)'].where(nan_mask, dch, inplace=True)
 
 
 def _read_data_ndc(file):
