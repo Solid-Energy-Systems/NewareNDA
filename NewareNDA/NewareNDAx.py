@@ -100,7 +100,7 @@ def _data_interpolation(df):
     nan_mask = df['Charge_Capacity(mAh)'].notnull()
 
     # Integrate to get capacity and fill missing values
-    capacity = df['Time'].diff()*df['Current(mA)']/3600
+    capacity = df['Time'].diff()*abs(df['Current(mA)'])/3600
     inc = capacity.groupby(nan_mask.cumsum()).cumsum()
     chg = df['Charge_Capacity(mAh)'].ffill() + \
         inc.where(df['Current(mA)'] > 0, 0).shift()
