@@ -148,6 +148,14 @@ def _read_data_runInfo_ndc(file):
         mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
         mm_size = mm.size()
 
+        # Choose byte format based on ndc file version
+        [ndc_version] = struct.unpack('<B', mm[2:3])
+        format = '<isffff12siii2s'
+        end_byte = -63
+        if ndc_version >= 14:
+            format = '<isffff12siii10s'
+            end_byte = -59
+
         # Identify the beginning of the data section
         record_len = 4096
         header = 4096
@@ -157,7 +165,7 @@ def _read_data_runInfo_ndc(file):
         mm.seek(header)
         while mm.tell() < mm_size:
             bytes = mm.read(record_len)
-            for i in struct.iter_unpack('<isffff12siii2s', bytes[132:-63]):
+            for i in struct.iter_unpack(format, bytes[132:end_byte]):
                 Time = i[0]
                 [Charge_Capacity, Discharge_Capacity] = [i[2], i[3]]
                 [Charge_Energy, Discharge_Energy] = [i[4], i[5]]
