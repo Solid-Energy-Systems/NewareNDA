@@ -56,15 +56,13 @@ def read_ndax(file):
             step_df = _read_data_step_ndc(step_file)
 
             # Merge dataframes
-            data_df = data_df[data_df['Index'] <= runInfo_df['Index'].iat[-1]]
             data_df = data_df.merge(runInfo_df, how='left', on='Index')
-
-            # Fill in missing data - Neware appears to fabricate data
-            data_df['Step'] = data_df['Step'].ffill().astype(int)
-            _data_interpolation(data_df)
-
+            data_df['Step'].ffill(inplace=True)
             data_df = data_df.merge(step_df, how='left', on='Step').reindex(
                 columns=rec_columns)
+
+            # Fill in missing data - Neware appears to fabricate data
+            # _data_interpolation(data_df)
 
         else:
             data_df, _ = read_ndc(data_file)
@@ -135,7 +133,8 @@ def _read_data_ndc(file):
         while mm.tell() < mm_size:
             bytes = mm.read(record_len)
             for i in struct.iter_unpack('<ff', bytes[132:-4]):
-                rec.append([i[0]/10000, i[1]])
+                if (i[0] != 0):
+                    rec.append([i[0]/10000, i[1]])
 
     # Create DataFrame
     df = pd.DataFrame(rec, columns=['Voltage', 'Current(mA)'])
