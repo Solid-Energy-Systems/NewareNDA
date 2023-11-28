@@ -173,7 +173,7 @@ def _read_data_runInfo_ndc(file):
                     rec.append([Time/1000,
                                 Charge_Capacity/3600, Discharge_Capacity/3600,
                                 Charge_Energy/3600, Discharge_Energy/3600,
-                                Timestamp, Step, Index])
+                                datetime.fromtimestamp(Timestamp), Step, Index])
 
     # Create DataFrame
     df = pd.DataFrame(rec, columns=[
