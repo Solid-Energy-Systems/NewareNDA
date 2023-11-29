@@ -4,6 +4,7 @@
 
 import mmap
 import struct
+import warnings
 import logging
 import tempfile
 import zipfile
@@ -62,7 +63,7 @@ def read_ndax(file):
                 columns=rec_columns)
 
             # Fill in missing data - Neware appears to fabricate data
-            # _data_interpolation(data_df)
+            _data_interpolation(data_df)
 
         else:
             data_df, _ = read_ndc(data_file)
@@ -89,13 +90,26 @@ def _data_interpolation(df):
     Some ndax from from BTS Server 8 do not seem to contain a complete dataset.
     This helper function fills in missing times, capacities, and energies.
     """
-    # Perform a linear interpolation of Time and Timestamp
-    df['Time'].interpolate(inplace=True)
-    df['Timestamp'] = df['Timestamp'].interpolate().astype(int).map(
-        datetime.fromtimestamp)
-
     # Identify the valid data
-    nan_mask = df['Charge_Capacity(mAh)'].notnull()
+    nan_mask = df['Time'].notnull()
+
+    if nan_mask.any():
+        warnings.warn("IMPORTANT: This ndax has missing data. The output from "
+                      "NewareNDA contains interpolated data!")
+
+    # Group by step and run 'inside' interpolation on Time
+    df['Time'] = df.groupby('Step')['Time'].transform(
+        lambda x: pd.DataFrame.interpolate(x, limit_area='inside'))
+
+    # Perform extrapolation to generate the remaining missing Time
+    nan_mask2 = df['Time'].notnull()
+    time_inc = df['Time'].diff().ffill().groupby(nan_mask2.cumsum()).cumsum()
+    time = df['Time'].ffill() + time_inc.shift()
+    df['Time'].where(nan_mask2, time, inplace=True)
+
+    # Fill in missing Timestamps
+    timestamp = df['Timestamp'].ffill() + pd.to_timedelta(time_inc.shift())
+    df['Timestamp'].where(nan_mask, timestamp, inplace=True)
 
     # Integrate to get capacity and fill missing values
     capacity = df['Time'].diff()*abs(df['Current(mA)'])/3600
