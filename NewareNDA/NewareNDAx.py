@@ -244,15 +244,15 @@ def read_ndc(file):
         while header != -1:
             mm.seek(header - offset)
             bytes = mm.read(record_len)
-            if _valid_record(bytes):
-                if bytes[rec_byte] == b'\x55':
+            if bytes[rec_byte] == b'\x55':
+                if _valid_record(bytes):
                     output.append(_bytes_to_list_ndc(bytes))
-                elif bytes[rec_byte] == b'\x65':
-                    aux.append(_aux_bytes_65_to_list_ndc(bytes))
-                elif bytes[rec_byte] == b'\x74':
-                    aux.append(_aux_bytes_74_to_list_ndc(bytes))
-                else:
-                    logging.warning("Unknown record type: "+bytes[rec_byte].hex())
+            elif bytes[rec_byte] == b'\x65':
+                aux.append(_aux_bytes_65_to_list_ndc(bytes))
+            elif bytes[rec_byte] == b'\x74':
+                aux.append(_aux_bytes_74_to_list_ndc(bytes))
+            else:
+                logging.warning("Unknown record type: "+bytes[rec_byte].hex())
 
             header = mm.find(identifier, header - offset + record_len)
 
@@ -272,6 +272,7 @@ def read_ndc(file):
         aux_df = pd.DataFrame(aux, columns=['Index', 'Aux', 'V', 'T'])
     elif identifier[id_byte] == b'\x74':
         aux_df = pd.DataFrame(aux, columns=['Index', 'Aux', 'V', 'T', 't'])
+    aux_df.drop_duplicates(subset='Index', inplace=True)
     return df, aux_df
 
 
