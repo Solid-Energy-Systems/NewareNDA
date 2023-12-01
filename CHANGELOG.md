@@ -5,6 +5,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [v2023.12.01]
+### Added
+- Support for ndax from BTS Server 8.
+- Additional ndax verison information now returned as logging.
+
+### Changed
+- 'software_cycle_number=True' is now the default for ndax.
+
+
 ## [v2023.11.01]
 ### Added
 - Ability to read auxiliary data from ndax files.
