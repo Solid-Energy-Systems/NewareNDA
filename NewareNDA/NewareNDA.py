@@ -20,6 +20,8 @@ def read(file, software_cycle_number=True):
 
     Args:
         file (str): Name of an .nda or .ndax file to read
+        software_cycle_number (bool): Regenerate the cycle number to match
+        Neware's "Charge First" circular statistic setting
     Returns:
         df (pd.DataFrame): DataFrame containing all records in the file
     """
@@ -27,7 +29,7 @@ def read(file, software_cycle_number=True):
     if ext == '.nda':
         return read_nda(file, software_cycle_number)
     elif ext == '.ndax':
-        return read_ndax(file)
+        return read_ndax(file, software_cycle_number)
     else:
         raise TypeError("File type not supported!")
 
