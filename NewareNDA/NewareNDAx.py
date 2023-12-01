@@ -35,11 +35,11 @@ def read_ndax(file, software_cycle_number=False):
         version_info = zf.extract('VersionInfo.xml', path=tmpdir)
         try:
             with open(version_info, 'r', encoding='gb2312') as f:
-                root = ET.fromstring(f.read())
-            server = root.find('config/ZwjVersion').attrib['SvrVer']
-            client = root.find('config/ZwjVersion').attrib['CurrClientVer']
-            logging.info(server)
-            logging.info(client)
+                config = ET.fromstring(f.read()).find('config/ZwjVersion')
+            logging.info(f"SvrVer: {config.attrib['SvrVer']}")
+            logging.info(f"CurrClientVer: {config.attrib['CurrClientVer']}")
+            logging.info(f"ZwjVersion: {config.attrib['ZwjVersion']}")
+            logging.info(f"MainXwjVer: {config.attrib['MainXwjVer']}")
         except Exception:
             pass
 
