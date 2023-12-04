@@ -112,6 +112,7 @@ def _data_interpolation(df):
     df['Time'].where(nan_mask2, time, inplace=True)
 
     # Fill in missing Timestamps
+    time_inc = df['Time'].diff().groupby(nan_mask.cumsum()).cumsum()
     timestamp = df['Timestamp'].ffill() + \
         pd.to_timedelta(time_inc.shift(), unit='S')
     df['Timestamp'].where(nan_mask, timestamp, inplace=True)
