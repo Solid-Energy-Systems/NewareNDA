@@ -43,6 +43,7 @@ state_dict = {
 
 # Define field scaling based on instrument Range setting
 multiplier_dict = {
+    -100000000: 10,
     -200000: 1e-2,
     -100000: 1e-2,
     -60000: 1e-2,
@@ -61,6 +62,7 @@ multiplier_dict = {
     -25: 1e-4,
     -1: 1e-5,
     0: 0,
+    1: 1e-4,
     10: 1e-3,
     100: 1e-2,
     200: 1e-2,
