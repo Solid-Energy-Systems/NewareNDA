@@ -47,7 +47,6 @@ def read_nda(file, software_cycle_number):
     """
     with open(file, "rb") as f:
         mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
-        mm_size = mm.size()
 
         if mm.read(6) != b'NEWARE':
             raise ValueError(f"{file} does not appear to be a Neware file.")
@@ -68,35 +67,11 @@ def read_nda(file, software_cycle_number):
         else:
             logging.info("BTS version not found!")
 
-        # Identify the beginning of the data section
-        record_len = 86
-        identifier = b'\x00\x00\x00\x00\x55\x00'
-        header = mm.find(identifier)
-        if header == -1:
-            raise EOFError(f"File {file} does not contain any valid records.")
-        while (((mm[header + 4 + record_len] != 85)
-                | (not _valid_record(mm[header+4:header+4+record_len])))
-               if header + 4 + record_len < mm_size
-               else False):
-            header = mm.find(identifier, header + 4)
-        mm.seek(header + 4)
-
-        # Read data records
-        output = []
-        aux = []
-        while mm.tell() < mm_size:
-            bytes = mm.read(record_len)
-            if len(bytes) == record_len:
-
-                # Check for a data record
-                if (bytes[0:2] == b'\x55\x00'
-                        and bytes[82:87] == b'\x00\x00\x00\x00'):
-                    output.append(_bytes_to_list(bytes))
-
-                # Check for an auxiliary record
-                elif (bytes[0:1] == b'\x65'
-                      and bytes[82:87] == b'\x00\x00\x00\x00'):
-                    aux.append(_aux_bytes_to_list(bytes))
+        # version specific settings
+        if nda_version < 130:
+            output, aux = _read_nda(mm)
+        else:
+            output, aux = _read_nda_130(mm)
 
     # Create DataFrame and sort by Index
     df = pd.DataFrame(output, columns=rec_columns)
@@ -123,6 +98,77 @@ def read_nda(file, software_cycle_number):
     df = df.astype(dtype=dtype_dict)
 
     return df
+
+
+def _read_nda(mm):
+    """Helper function for older nda verions < 130"""
+    mm_size = mm.size()
+
+    # Identify the beginning of the data section
+    record_len = 86
+    identifier = b'\x00\x00\x00\x00\x55\x00'
+    header = mm.find(identifier)
+    if header == -1:
+        raise EOFError("File does not contain any valid records.")
+    while (((mm[header + 4 + record_len] != 85)
+            | (not _valid_record(mm[header+4:header+4+record_len])))
+            if header + 4 + record_len < mm_size
+            else False):
+        header = mm.find(identifier, header + 4)
+    mm.seek(header + 4)
+
+    # Read data records
+    output = []
+    aux = []
+    while mm.tell() < mm_size:
+        bytes = mm.read(record_len)
+        if len(bytes) == record_len:
+
+            # Check for a data record
+            if (bytes[0:2] == b'\x55\x00'
+                    and bytes[82:87] == b'\x00\x00\x00\x00'):
+                output.append(_bytes_to_list(bytes))
+
+            # Check for an auxiliary record
+            elif (bytes[0:1] == b'\x65'
+                    and bytes[82:87] == b'\x00\x00\x00\x00'):
+                aux.append(_aux_bytes_to_list(bytes))
+
+    return output, aux
+
+
+def _read_nda_130(mm):
+    """Helper function for nda version 130"""
+    mm_size = mm.size()
+
+    # Identify the beginning of the data section
+    record_len = 88
+    identifier = b'\x1d\xf0\x00\x06\x55\x81'
+    header = mm.find(identifier)
+    if header == -1:
+        raise EOFError("File does not contain any valid records.")
+    while (((mm[header + 4 + record_len] != 85)
+            | (not _valid_record(mm[header+4:header+4+record_len])))
+            if header + 4 + record_len < mm_size
+            else False):
+        header = mm.find(identifier, header + 4)
+    mm.seek(header)
+
+    # Read data records
+    output = []
+    aux = []
+    while mm.tell() < mm_size:
+        bytes = mm.read(record_len)
+        if len(bytes) == record_len:
+
+            # Check for a data record
+            if bytes[0:6] == identifier:
+                output.append(_bytes_to_list_BTS9(bytes[4:]))
+
+            # Check for an auxiliary record
+            elif bytes[0:5] == b'\x00\x00\x00\x00\x65':
+                aux.append(_aux_bytes_to_list(bytes[4:]))
+    return output, aux
 
 
 def _valid_record(bytes):
@@ -165,6 +211,34 @@ def _bytes_to_list(bytes):
         Charge_energy*multiplier/3600,
         Discharge_energy*multiplier/3600,
         datetime(Y, M, D, h, m, s)
+    ]
+    return list
+
+
+def _bytes_to_list_BTS9(bytes):
+    """Helper function to interpret byte strings from BTS9"""
+    [Step, Status] = struct.unpack('<BB', bytes[5:7])
+    [Index] = struct.unpack('<I', bytes[12:16])
+    [Time] = struct.unpack('<Q', bytes[24:32])
+    [Voltage, Current] = struct.unpack('<ff', bytes[32:40])
+    [Charge_Capacity, Charge_Energy] = struct.unpack('<ff', bytes[48:56])
+    [Discharge_Capacity, Discharge_Energy] = struct.unpack('<ff', bytes[56:64])
+    [Date] = struct.unpack('<Q', bytes[64:72])
+
+    # Create a dictionary for the record
+    list = [
+        Index,
+        0,
+        Step,
+        state_dict[Status],
+        Time/1e6,
+        Voltage,
+        Current,
+        Charge_Capacity/3600,
+        Discharge_Capacity/3600,
+        Charge_Energy/3600,
+        Discharge_Energy/3600,
+        datetime.fromtimestamp(Date/1e6)
     ]
     return list
 
