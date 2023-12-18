@@ -5,6 +5,7 @@
 import os
 import mmap
 import struct
+import warnings
 import logging
 from datetime import datetime
 import pandas as pd
@@ -14,34 +15,42 @@ from NewareNDA.dicts import rec_columns, aux_columns, dtype_dict, \
 from .NewareNDAx import read_ndax
 
 
-def read(file, software_cycle_number=True):
+def read(file, software_cycle_number=True, cycle_mode='chg'):
     """
     Read electrochemical data from an Neware nda or ndax binary file.
 
     Args:
         file (str): Name of an .nda or .ndax file to read
         software_cycle_number (bool): Regenerate the cycle number to match
-        Neware's "Charge First" circular statistic setting
+            Neware's "Charge First" circular statistic setting
+        cycle_mode (str): Selects how the cycle is incremented. 
+            'chg': (Default) Sets new cycles with a Charge step following a Discharge.
+            'dchg': Sets new cycles with a Discharge step following a Charge.
+            'auto': Identifies the first non-rest state as the incremental state.
     Returns:
         df (pd.DataFrame): DataFrame containing all records in the file
     """
     _, ext = os.path.splitext(file)
     if ext == '.nda':
-        return read_nda(file, software_cycle_number)
+        return read_nda(file, software_cycle_number, cycle_mode)
     elif ext == '.ndax':
         return read_ndax(file, software_cycle_number)
     else:
         raise TypeError("File type not supported!")
 
 
-def read_nda(file, software_cycle_number):
+def read_nda(file, software_cycle_number, cycle_mode='chg'):
     """
     Function read electrochemical data from a Neware nda binary file.
 
     Args:
         file (str): Name of a .nda file to read
         software_cycle_number (bool): Generate the cycle number field
-        to match old versions of BTSDA
+            to match old versions of BTSDA
+        cycle_mode (str): Selects how the cycle is incremented. 
+            'chg': (Default) Sets new cycles with a Charge step following a Discharge.
+            'dchg': Sets new cycles with a Discharge step following a Charge.
+            'auto': Identifies the first non-rest state as the incremental state.
     Returns:
         df (pd.DataFrame): DataFrame containing all records in the file
     """
@@ -119,7 +128,7 @@ def read_nda(file, software_cycle_number):
     # Postprocessing
     df['Step'] = _count_changes(df['Step'])
     if software_cycle_number:
-        df['Cycle'] = _generate_cycle_number(df)
+        df['Cycle'] = _generate_cycle_number(df, cycle_mode)
     df = df.astype(dtype=dtype_dict)
 
     return df
@@ -177,33 +186,70 @@ def _aux_bytes_to_list(bytes):
     return [Index, Aux, T/10]
 
 
-def _generate_cycle_number(df):
+def _generate_cycle_number(df, cycle_mode='chg'):
     """
-    Generate a cycle number to match Neware. A new cycle starts with a charge
-    step after there has previously been a discharge.
+    Generate a cycle number to match Neware.
+    
+    cycle_mode = chg: (Default) Sets new cycles with a Charge step following a Discharge.
+        dchg: Sets new cycles with a Discharge step following a Charge.
+        auto: Identifies the first non-rest state as the incremental state.
     """
+    
+    # Auto: find the first non rest cycle
+    if cycle_mode.lower() == 'auto':
+        first_state = df[df['Status'] != 'Rest']['Status'].iat[0]
+        try:
+            _, cycle_mode = first_state.split('_', 1)
+        except ValueError:
+            # Status is SIM or otherwise. Set mode to chg
+            warnings.warn("First Step not recognized. Defaulting to Cycle_Mode 'Charge'.")
+            cycle_mode = 'chg'
+        
+    # Set increment key and non-increment/off key    
+    if cycle_mode.lower() == 'chg':
+        inkey = 'Chg'
+        offkey = 'DChg'
+    elif cycle_mode.lower() == 'dchg':
+        inkey = 'DChg'
+        offkey = 'Chg'
+    else: raise KeyError("Cycle_Mode string not recognized. Supported options are 'chg', 'dchg', and 'auto'.")
+    
+    # Identify the beginning of key incremental steps
+    inc = (df['Status'] == 'CCCV_'+inkey) | (df['Status'] == 'CC_'+inkey) |  (df['Status'] == 'CP_'+inkey)
 
-    # Identify the beginning of charge steps
-    chg = (df['Status'] == 'CCCV_Chg') | (df['Status'] == 'CC_Chg') |  (df['Status'] == 'CP_Chg')
-    chg = (chg - chg.shift()).clip(0)
-    chg.iat[0] = 1
+    # inc series = 1 at new incremental step, 0 otherwise
+    inc = (inc - inc.shift()).clip(0)
+    inc.iat[0] = 1
 
     # Convert to numpy arrays
-    chg = chg.values
+    inc = inc.values
     status = df['Status'].values
 
-    # Increment the cycle at a charge step after there has been a discharge
-    cyc = 1
-    dchg = False
-    for n in range(len(chg)):
-        if chg[n] & dchg:
-            cyc += 1
-            dchg = False
-        elif 'DChg' in status[n] or status[n] == 'SIM':
-            dchg = True
-        chg[n] = cyc
 
-    return chg
+    # Increment the cycle at a charge step after there has been a discharge, or vice versa
+    cyc = 1
+    Flag = False
+    for n in range(len(inc)):
+        # Get Chg/DChg status
+        try:
+            method, state = status[n].split('_', 1)
+        except ValueError:
+            # Status is SIM or otherwise. Set Flag
+            Flag = True if status[n] == 'SIM' else Flag
+            
+        else:
+            # Standard status type
+            if inc[n] & Flag:
+                # Increment the cycle number and reset flag when flag is active and the incremental step changes
+                cyc += 1
+                Flag = False
+            elif state == offkey:
+                Flag = True
+                                
+        finally:
+            inc[n] = cyc
+
+    return inc
 
 
 def _count_changes(series):
