@@ -103,7 +103,7 @@ def _data_interpolation(df):
 
     # Group by step and run 'inside' interpolation on Time
     df['Time'] = df.groupby('Step')['Time'].transform(
-        lambda x: pd.DataFrame.interpolate(x, limit_area='inside'))
+        lambda x: pd.Series.interpolate(x, limit_area='inside'))
 
     # Perform extrapolation to generate the remaining missing Time
     nan_mask2 = df['Time'].notnull()
