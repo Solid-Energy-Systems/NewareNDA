@@ -23,7 +23,7 @@ def read(file, software_cycle_number=True, cycle_mode='chg'):
         file (str): Name of an .nda or .ndax file to read
         software_cycle_number (bool): Regenerate the cycle number to match
             Neware's "Charge First" circular statistic setting
-        cycle_mode (str): Selects how the cycle is incremented. 
+        cycle_mode (str): Selects how the cycle is incremented.
             'chg': (Default) Sets new cycles with a Charge step following a Discharge.
             'dchg': Sets new cycles with a Discharge step following a Charge.
             'auto': Identifies the first non-rest state as the incremental state.
@@ -34,7 +34,7 @@ def read(file, software_cycle_number=True, cycle_mode='chg'):
     if ext == '.nda':
         return read_nda(file, software_cycle_number, cycle_mode)
     elif ext == '.ndax':
-        return read_ndax(file, software_cycle_number)
+        return read_ndax(file, software_cycle_number, cycle_mode)
     else:
         raise TypeError("File type not supported!")
 
@@ -47,7 +47,7 @@ def read_nda(file, software_cycle_number, cycle_mode='chg'):
         file (str): Name of a .nda file to read
         software_cycle_number (bool): Generate the cycle number field
             to match old versions of BTSDA
-        cycle_mode (str): Selects how the cycle is incremented. 
+        cycle_mode (str): Selects how the cycle is incremented.
             'chg': (Default) Sets new cycles with a Charge step following a Discharge.
             'dchg': Sets new cycles with a Discharge step following a Charge.
             'auto': Identifies the first non-rest state as the incremental state.
@@ -263,12 +263,12 @@ def _aux_bytes_to_list(bytes):
 def _generate_cycle_number(df, cycle_mode='chg'):
     """
     Generate a cycle number to match Neware.
-    
+
     cycle_mode = chg: (Default) Sets new cycles with a Charge step following a Discharge.
         dchg: Sets new cycles with a Discharge step following a Charge.
         auto: Identifies the first non-rest state as the incremental state.
     """
-    
+
     # Auto: find the first non rest cycle
     if cycle_mode.lower() == 'auto':
         first_state = df[df['Status'] != 'Rest']['Status'].iat[0]
@@ -278,16 +278,17 @@ def _generate_cycle_number(df, cycle_mode='chg'):
             # Status is SIM or otherwise. Set mode to chg
             warnings.warn("First Step not recognized. Defaulting to Cycle_Mode 'Charge'.")
             cycle_mode = 'chg'
-        
-    # Set increment key and non-increment/off key    
+
+    # Set increment key and non-increment/off key
     if cycle_mode.lower() == 'chg':
         inkey = 'Chg'
         offkey = 'DChg'
     elif cycle_mode.lower() == 'dchg':
         inkey = 'DChg'
         offkey = 'Chg'
-    else: raise KeyError("Cycle_Mode string not recognized. Supported options are 'chg', 'dchg', and 'auto'.")
-    
+    else:
+        raise KeyError(f"Cycle_Mode '{cycle_mode}' not recognized. Supported options are 'chg', 'dchg', and 'auto'.")
+
     # Identify the beginning of key incremental steps
     inc = (df['Status'] == 'CCCV_'+inkey) | (df['Status'] == 'CC_'+inkey) |  (df['Status'] == 'CP_'+inkey)
 
@@ -299,7 +300,6 @@ def _generate_cycle_number(df, cycle_mode='chg'):
     inc = inc.values
     status = df['Status'].values
 
-
     # Increment the cycle at a charge step after there has been a discharge, or vice versa
     cyc = 1
     Flag = False
@@ -310,7 +310,7 @@ def _generate_cycle_number(df, cycle_mode='chg'):
         except ValueError:
             # Status is SIM or otherwise. Set Flag
             Flag = True if status[n] == 'SIM' else Flag
-            
+
         else:
             # Standard status type
             if inc[n] & Flag:
@@ -319,7 +319,7 @@ def _generate_cycle_number(df, cycle_mode='chg'):
                 Flag = False
             elif state == offkey:
                 Flag = True
-                                
+
         finally:
             inc[n] = cyc
 

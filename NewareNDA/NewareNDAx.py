@@ -18,13 +18,17 @@ from NewareNDA.dicts import rec_columns, dtype_dict, state_dict, \
      multiplier_dict
 
 
-def read_ndax(file, software_cycle_number=False):
+def read_ndax(file, software_cycle_number=False, cycle_mode='chg'):
     """
     Function to read electrochemical data from a Neware ndax binary file.
 
     Args:
         file (str): Name of an .ndax file to read
         software_cycle_number (bool): Regenerate the cycle number field
+        cycle_mode (str): Selects how the cycle is incremented.
+            'chg': (Default) Sets new cycles with a Charge step following a Discharge.
+            'dchg': Sets new cycles with a Discharge step following a Charge.
+            'auto': Identifies the first non-rest state as the incremental state.
     Returns:
         df (pd.DataFrame): DataFrame containing all records in the file
     """
@@ -84,7 +88,7 @@ def read_ndax(file, software_cycle_number=False):
                 data_df = data_df.join(pvt_df, on='Index')
 
     if software_cycle_number:
-        data_df['Cycle'] = NewareNDA.NewareNDA._generate_cycle_number(data_df)
+        data_df['Cycle'] = NewareNDA.NewareNDA._generate_cycle_number(data_df, cycle_mode)
 
     return data_df.astype(dtype=dtype_dict)
 
