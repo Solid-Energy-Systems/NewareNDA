@@ -5,6 +5,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [v2024.01.02]
+### Added
+- Support for nda files from BTS9.
+- New 'cycle_mode' keyword argument to specify how cycle number should be generated.
+- Additional current ranges.
+
+### Fixed
+- Bug fixes for ndax support.
+
+
 ## [v2023.12.01]
 ### Added
 - Support for ndax from BTS Server 8.
