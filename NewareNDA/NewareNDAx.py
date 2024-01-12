@@ -73,19 +73,19 @@ def read_ndax(file, software_cycle_number=False, cycle_mode='chg'):
         else:
             data_df, _ = read_ndc(data_file)
 
-            # Read and merge Aux data from ndc files
-            aux_df = pd.DataFrame([])
-            for f in zf.namelist():
-                m = re.search(".*_([0-9]+)[.]ndc", f)
-                if m:
-                    aux_file = zf.extract(f, path=tmpdir)
-                    _, aux = read_ndc(aux_file)
-                    aux['Aux'] = int(m[1])
-                    aux_df = pd.concat([aux_df, aux], ignore_index=True)
-            if not aux_df.empty:
-                pvt_df = aux_df.pivot(index='Index', columns='Aux')
-                pvt_df.columns = pvt_df.columns.map(lambda x: ''.join(map(str, x)))
-                data_df = data_df.join(pvt_df, on='Index')
+        # Read and merge Aux data from ndc files
+        aux_df = pd.DataFrame([])
+        for f in zf.namelist():
+            m = re.search(".*_([0-9]+)[.]ndc", f)
+            if m:
+                aux_file = zf.extract(f, path=tmpdir)
+                _, aux = read_ndc(aux_file)
+                aux['Aux'] = int(m[1])
+                aux_df = pd.concat([aux_df, aux], ignore_index=True)
+        if not aux_df.empty:
+            pvt_df = aux_df.pivot(index='Index', columns='Aux')
+            pvt_df.columns = pvt_df.columns.map(lambda x: ''.join(map(str, x)))
+            data_df = data_df.join(pvt_df, on='Index')
 
     if software_cycle_number:
         data_df['Cycle'] = NewareNDA.NewareNDA._generate_cycle_number(data_df, cycle_mode)
@@ -252,6 +252,9 @@ def read_ndc(file):
         [ndc_version] = struct.unpack('<B', mm[2:3])
         logging.info(f"NDC version: {ndc_version}")
 
+        if ndc_version == 11:
+            return _read_ndc_11(mm)
+
         # Identify the beginning of the data section
         record_len = 94
         offset = 0
@@ -302,6 +305,27 @@ def read_ndc(file):
         aux_df = pd.DataFrame(aux, columns=['Index', 'Aux', 'V', 'T', 't'])
     aux_df.drop_duplicates(subset='Index', inplace=True)
     return df, aux_df
+
+
+def _read_ndc_11(mm):
+    """Helper function that reads aux data from ndc version 11"""
+    mm_size = mm.size()
+    record_len = 4096
+    header = 4096
+
+    # Read data records
+    aux = []
+    mm.seek(header)
+    while mm.tell() < mm_size:
+        bytes = mm.read(record_len)
+        for i in struct.iter_unpack('<cfh', bytes[132:-2]):
+            if i[0] == b'\x65':
+                aux.append([i[1]/10000, i[2]/10])
+
+    # Create DataFrame
+    aux_df = pd.DataFrame(aux, columns=['V', 'T'])
+    aux_df['Index'] = aux_df.index + 1
+    return None, aux_df
 
 
 def _valid_record(bytes):
