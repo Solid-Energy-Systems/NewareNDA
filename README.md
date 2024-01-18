@@ -1,6 +1,8 @@
+[![release](https://img.shields.io/github/v/release/Solid-Energy-Systems/NewareNDA)](https://github.com/Solid-Energy-Systems/NewareNDA/releases)
+
 # NewareNDA
 
-© 2023 Copyright SES AI
+© 2024 Copyright SES AI
 <br>Author: Daniel Cogswell
 <br>Email: danielcogswell@ses.ai
 
@@ -10,6 +12,11 @@ Python module and command line tool for reading and converting Neware nda and nd
 To install from the PyPi package repository:
 ```
 pip install NewareNDA
+```
+
+To install the development branch directly from Github:
+```
+pip install git+https://github.com/Solid-Energy-Systems/NewareNDA.git@development
 ```
 
 To install from source, clone this repository and run:
