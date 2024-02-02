@@ -118,7 +118,7 @@ def _data_interpolation(df):
     # Fill in missing Timestamps
     time_inc = df['Time'].diff().groupby(nan_mask.cumsum()).cumsum()
     timestamp = df['Timestamp'].ffill() + \
-        pd.to_timedelta(time_inc.shift(), unit='S')
+        pd.to_timedelta(time_inc.shift().fillna(0), unit='s')
     df['Timestamp'].where(nan_mask, timestamp, inplace=True)
 
     # Integrate to get capacity and fill missing values
