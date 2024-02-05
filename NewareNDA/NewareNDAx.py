@@ -63,7 +63,7 @@ def read_ndax(file, software_cycle_number=False, cycle_mode='chg'):
 
             # Merge dataframes
             data_df = data_df.merge(runInfo_df, how='left', on='Index')
-            data_df['Step'].ffill(inplace=True)
+            data_df['Step'] = data_df['Step'].ffill()
             data_df = data_df.merge(step_df, how='left', on='Step').reindex(
                 columns=rec_columns)
 
@@ -113,13 +113,13 @@ def _data_interpolation(df):
     nan_mask2 = df['Time'].notnull()
     time_inc = df['Time'].diff().ffill().groupby(nan_mask2.cumsum()).cumsum()
     time = df['Time'].ffill() + time_inc.shift()
-    df['Time'].where(nan_mask2, time, inplace=True)
+    df['Time'] = df['Time'].where(nan_mask2, time)
 
     # Fill in missing Timestamps
     time_inc = df['Time'].diff().groupby(nan_mask.cumsum()).cumsum()
     timestamp = df['Timestamp'].ffill() + \
         pd.to_timedelta(time_inc.shift().fillna(0), unit='s')
-    df['Timestamp'].where(nan_mask, timestamp, inplace=True)
+    df['Timestamp'] = df['Timestamp'].where(nan_mask, timestamp)
 
     # Integrate to get capacity and fill missing values
     capacity = df['Time'].diff()*abs(df['Current(mA)'])/3600
@@ -128,8 +128,8 @@ def _data_interpolation(df):
         inc.where(df['Current(mA)'] > 0, 0).shift()
     dch = df['Discharge_Capacity(mAh)'].ffill() + \
         inc.where(df['Current(mA)'] < 0, 0).shift()
-    df['Charge_Capacity(mAh)'].where(nan_mask, chg, inplace=True)
-    df['Discharge_Capacity(mAh)'].where(nan_mask, dch, inplace=True)
+    df['Charge_Capacity(mAh)'] = df['Charge_Capacity(mAh)'].where(nan_mask, chg)
+    df['Discharge_Capacity(mAh)'] = df['Discharge_Capacity(mAh)'].where(nan_mask, dch)
 
     # Integrate to get energy and fill missing values
     energy = capacity*df['Voltage']
@@ -138,9 +138,8 @@ def _data_interpolation(df):
         inc.where(df['Current(mA)'] > 0, 0).shift()
     dch = df['Discharge_Energy(mWh)'].ffill() + \
         inc.where(df['Current(mA)'] < 0, 0).shift()
-    df['Charge_Energy(mWh)'].where(nan_mask, chg, inplace=True)
-    df['Discharge_Energy(mWh)'].where(nan_mask, dch, inplace=True)
-
+    df['Charge_Energy(mWh)'] = df['Charge_Energy(mWh)'].where(nan_mask, chg)
+    df['Discharge_Energy(mWh)'] = df['Discharge_Energy(mWh)'].where(nan_mask, dch)
 
 def _read_data_ndc(file):
     with open(file, 'rb') as f:
