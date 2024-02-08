@@ -204,7 +204,14 @@ def _bytes_to_list(bytes):
     if Index == 0 or Status == 0:
         return []
 
-    multiplier = multiplier_dict[Range]
+    if Range not in multiplier_dict:
+        warnings.warn(
+            f"""Instrument range {Range=} not a recognized value; the data cannot be automatically scaled for this instrument, disabling scaling.
+For support for this instrument, please raise an issue on GitHub at https://github.com/Solid-Energy-Systems/NewareNDA/issues.
+""")
+        multiplier = 1.0
+    else:
+        multiplier = multiplier_dict[Range]
 
     # Create a dictionary for the record
     list = [
