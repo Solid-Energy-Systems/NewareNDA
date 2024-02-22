@@ -6,7 +6,7 @@
 <br>Author: Daniel Cogswell
 <br>Email: danielcogswell@ses.ai
 
-Python module and command line tool for reading and converting Neware nda and ndax battery cycling files. Auxiliary temperature fields are currently supported in nda format, with support for ndax auxiliary fields in development.
+Python module and command line tool for reading and converting Neware nda and ndax battery cycling files. Auxiliary temperature fields are currently supported in both formats.
 
 # Installation
 To install from the PyPi package repository:
