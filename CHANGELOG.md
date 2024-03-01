@@ -5,6 +5,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [v2024.03.01]
+### Added
+- Additional range setting added.
+
+### Fixed
+- Resolved FutureWarnings for pandas 3.0
+
+
 ## [v2024.02.01]
 ### Added
 - Expanded ndax aux channel support (ndc version 11).
