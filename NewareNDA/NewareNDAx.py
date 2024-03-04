@@ -251,7 +251,9 @@ def read_ndc(file):
         [ndc_version] = struct.unpack('<B', mm[2:3])
         logging.info(f"NDC version: {ndc_version}")
 
-        if ndc_version == 11:
+        if ndc_version == 5:
+            return _read_ndc_5(mm)
+        elif ndc_version == 11:
             return _read_ndc_11(mm)
 
         # Identify the beginning of the data section
@@ -260,12 +262,6 @@ def read_ndc(file):
         identifier = mm[517:525]
         id_byte = slice(0, 1)
         rec_byte = slice(0, 1)
-        if identifier == b'\x00\x00\x00\x00\x00\x00\x00\x00':
-            record_len = 90
-            offset = 4
-            identifier = mm[4225:4229]
-            id_byte = slice(3, 4)
-            rec_byte = slice(7, 8)
 
         # Read data records
         output = []
@@ -303,6 +299,42 @@ def read_ndc(file):
     elif identifier[id_byte] == b'\x74':
         aux_df = pd.DataFrame(aux, columns=['Index', 'Aux', 'V', 'T', 't'])
     aux_df.drop_duplicates(subset='Index', inplace=True)
+    return df, aux_df
+
+
+def _read_ndc_5(mm):
+    """Helper function that reads records and aux data from ndc version 5"""
+    mm_size = mm.size()
+    record_len = 4096
+    header = 4096
+    rec_byte = slice(7, 8)
+
+    # Read data records
+    output = []
+    aux65 = []
+    aux74 = []
+    mm.seek(header)
+    while mm.tell() < mm_size:
+        bytes = mm.read(record_len)
+        for i in struct.iter_unpack('<87s', bytes[125:-56]):
+            if i[0][rec_byte] == b'\x55':
+                output.append(_bytes_to_list_ndc(i[0]))
+            if i[0][rec_byte] == b'\x65':
+                aux65.append(_aux_bytes_65_to_list_ndc(i[0]))
+            elif i[0][rec_byte] == b'\x74':
+                aux74.append(_aux_bytes_74_to_list_ndc(i[0]))
+
+    # Create DataFrames
+    df = pd.DataFrame(output, columns=rec_columns)
+
+    # Concat aux65 and aux74 if they both contain data
+    aux_df = pd.DataFrame(aux65, columns=['Index', 'Aux', 'V', 'T'])
+    aux74_df = pd.DataFrame(aux74, columns=['Index', 'Aux', 'V', 'T', 't'])
+    if (not aux_df.empty) & (not aux74_df.empty):
+        aux_df = pd.concat([aux_df, aux74_df.drop(columns=['t'])])
+    elif (not aux74_df.empty):
+        aux_df = aux74_df
+
     return df, aux_df
 
 
