@@ -141,6 +141,7 @@ def _data_interpolation(df):
     df['Charge_Energy(mWh)'] = df['Charge_Energy(mWh)'].where(nan_mask, chg)
     df['Discharge_Energy(mWh)'] = df['Discharge_Energy(mWh)'].where(nan_mask, dch)
 
+
 def _read_data_ndc(file):
     with open(file, 'rb') as f:
         mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
@@ -271,8 +272,7 @@ def read_ndc(file):
             mm.seek(header - offset)
             bytes = mm.read(record_len)
             if bytes[rec_byte] == b'\x55':
-                if _valid_record(bytes):
-                    output.append(_bytes_to_list_ndc(bytes))
+                output.append(_bytes_to_list_ndc(bytes))
             elif bytes[rec_byte] == b'\x65':
                 aux.append(_aux_bytes_65_to_list_ndc(bytes))
             elif bytes[rec_byte] == b'\x74':
@@ -284,12 +284,6 @@ def read_ndc(file):
 
     # Create DataFrame and sort by Index
     df = pd.DataFrame(output, columns=rec_columns)
-    df.drop_duplicates(subset='Index', inplace=True)
-
-    if not df['Index'].is_monotonic_increasing:
-        df.sort_values('Index', inplace=True)
-
-    df.reset_index(drop=True, inplace=True)
 
     # Postprocessing
     aux_df = pd.DataFrame([])
@@ -298,7 +292,7 @@ def read_ndc(file):
         aux_df = pd.DataFrame(aux, columns=['Index', 'Aux', 'V', 'T'])
     elif identifier[id_byte] == b'\x74':
         aux_df = pd.DataFrame(aux, columns=['Index', 'Aux', 'V', 'T', 't'])
-    aux_df.drop_duplicates(subset='Index', inplace=True)
+
     return df, aux_df
 
 
@@ -357,12 +351,6 @@ def _read_ndc_11(mm):
     aux_df = pd.DataFrame(aux, columns=['V', 'T'])
     aux_df['Index'] = aux_df.index + 1
     return None, aux_df
-
-
-def _valid_record(bytes):
-    """Helper function to identify a valid record"""
-    [Status] = struct.unpack('<B', bytes[17:18])
-    return (Status != 0) & (Status != 255)
 
 
 def _bytes_to_list_ndc(bytes):
