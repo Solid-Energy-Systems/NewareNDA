@@ -25,7 +25,7 @@ setuptools.setup(
     packages=['NewareNDA'],
     scripts=['bin/NewareNDA-cli.py'],
     install_requires=['pandas'],
-    extras_require={'test': ['pytest', 'pyarrow']},
+    extras_require={'test': ['pytest', 'pyarrow', 'coveralls']},
     python_requires='>=3.6',
     classifiers=[
         "Programming Language :: Python :: 3",
