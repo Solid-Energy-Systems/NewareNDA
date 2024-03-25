@@ -1,4 +1,4 @@
-name: NewareNDA regression tests
+name: regression tests
 
 on: [push, workflow_dispatch]
 
