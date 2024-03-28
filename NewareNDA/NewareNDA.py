@@ -152,16 +152,8 @@ def _read_nda_130(mm):
 
     # Identify the beginning of the data section
     record_len = 88
-    identifier = b'\x1d\xf0\x00\x06\x55\x81'
-    header = mm.find(identifier)
-    if header == -1:
-        raise EOFError("File does not contain any valid records.")
-    while (((mm[header + 4 + record_len] != 85)
-            | (not _valid_record(mm[header+4:header+4+record_len])))
-            if header + 4 + record_len < mm_size
-            else False):
-        header = mm.find(identifier, header + 4)
-    mm.seek(header)
+    identifier = mm[1024:1030]
+    mm.seek(1024)
 
     # Read data records
     output = []
