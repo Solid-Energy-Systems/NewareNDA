@@ -5,6 +5,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [v2024.04.01]
+### Added
+- Github workflow with regression testing and code coverage.
+- Hardware range settings.
+
+### Fixed
+- Issue #50 related to missing Aux data.
+
+
 ## [v2024.03.01]
 ### Added
 - Additional range setting added.
