@@ -77,7 +77,9 @@ def read_nda(file, software_cycle_number, cycle_mode='chg'):
             logging.info("BTS version not found!")
 
         # version specific settings
-        if nda_version < 130:
+        if nda_version == 8:
+            raise NotImplementedError("nda version 8 is not supported!")
+        elif nda_version < 130:
             output, aux = _read_nda(mm)
         else:
             output, aux = _read_nda_130(mm)
