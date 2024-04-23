@@ -175,6 +175,11 @@ def _read_nda_130(mm):
             # Check for an auxiliary record
             elif bytes[0:5] == b'\x00\x00\x00\x00\x65':
                 aux.append(_aux_bytes_to_list(bytes[4:]))
+
+    # Get active mass
+    [active_mass] = struct.unpack('<f', mm[-44:-40])
+    logging.info(f"Active mass: {active_mass} mg")
+
     return output, aux
 
 
