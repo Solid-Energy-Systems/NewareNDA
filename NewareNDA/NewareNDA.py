@@ -115,6 +115,10 @@ def _read_nda(mm):
     """Helper function for older nda verions < 130"""
     mm_size = mm.size()
 
+    # Get the active mass
+    [active_mass] = struct.unpack('<I', mm[152:156])
+    logging.info(f"Active mass: {active_mass/1000} mg")
+
     # Identify the beginning of the data section
     record_len = 86
     identifier = b'\x00\x00\x00\x00\x55\x00'
