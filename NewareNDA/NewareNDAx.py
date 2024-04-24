@@ -36,14 +36,24 @@ def read_ndax(file, software_cycle_number=False, cycle_mode='chg'):
         zf = zipfile.PyZipFile(file)
 
         # Read version information
-        version_info = zf.extract('VersionInfo.xml', path=tmpdir)
         try:
+            version_info = zf.extract('VersionInfo.xml', path=tmpdir)
             with open(version_info, 'r', encoding='gb2312') as f:
                 config = ET.fromstring(f.read()).find('config/ZwjVersion')
-            logging.info(f"SvrVer: {config.attrib['SvrVer']}")
-            logging.info(f"CurrClientVer: {config.attrib['CurrClientVer']}")
-            logging.info(f"ZwjVersion: {config.attrib['ZwjVersion']}")
-            logging.info(f"MainXwjVer: {config.attrib['MainXwjVer']}")
+            logging.info(f"Server version: {config.attrib['SvrVer']}")
+            logging.info(f"Client version: {config.attrib['CurrClientVer']}")
+            logging.info(f"Control unit version: {config.attrib['ZwjVersion']}")
+            logging.info(f"Tester version: {config.attrib['MainXwjVer']}")
+        except Exception:
+            pass
+
+        # Read active mass
+        try:
+            step = zf.extract('Step.xml', path=tmpdir)
+            with open(step, 'r', encoding='gb2312') as f:
+                config = ET.fromstring(f.read()).find('config')
+            active_mass = float(config.find('Head_Info/SCQ').attrib['Value'])
+            logging.info(f"Active mass: {active_mass/1000} mg")
         except Exception:
             pass
 
