@@ -47,6 +47,16 @@ def read_ndax(file, software_cycle_number=False, cycle_mode='chg'):
         except Exception:
             pass
 
+        # Read active mass
+        try:
+            step = zf.extract('Step.xml', path=tmpdir)
+            with open(step, 'r', encoding='gb2312') as f:
+                config = ET.fromstring(f.read()).find('config')
+            active_mass = float(config.find('Head_Info/SCQ').attrib['Value'])
+            logging.info(f"Active mass: {active_mass/1000} mg")
+        except Exception:
+            pass
+
         data_file = zf.extract('data.ndc', path=tmpdir)
 
         # Some ndax have data spread across 3 different ndc files. Others have
