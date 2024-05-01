@@ -5,6 +5,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [v2024.05.01]
+### Added
+- Unsupported nda versions now raise exceptions.
+
+## Fixed
+- More robust support for nda version 130
+
+
 ## [v2024.04.01]
 ### Added
 - Github workflow with regression testing and code coverage.
