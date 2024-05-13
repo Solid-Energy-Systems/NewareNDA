@@ -115,6 +115,17 @@ def _read_nda(mm):
     """Helper function for older nda verions < 130"""
     mm_size = mm.size()
 
+    # Get the active mass
+    [active_mass] = struct.unpack('<I', mm[152:156])
+    logging.info(f"Active mass: {active_mass/1000} mg")
+    
+    # Get the remarks
+    remarks = mm[2317:2417].decode('ASCII')
+    
+    # Clean null characters
+    remarks = remarks.replace(chr(0), '').strip()
+    logging.info(f"Remarks: {remarks}")
+
     # Identify the beginning of the data section
     record_len = 86
     identifier = b'\x00\x00\x00\x00\x55\x00'
@@ -171,6 +182,24 @@ def _read_nda_130(mm):
             # Check for an auxiliary record
             elif bytes[0:5] == b'\x00\x00\x00\x00\x65':
                 aux.append(_aux_bytes_to_list(bytes[4:]))
+
+    # Find footer data block
+    footer = mm.rfind(b'\x06\x00\xf0\x1d\x81\x00\x03\x00\x61\x90\x71\x90\x02\x7f\xff\x00', 1024)
+    if footer != -1:
+        mm.seek(footer+16)
+        bytes = mm.read(499)
+
+        # Get the active mass
+        [active_mass] = struct.unpack('<d', bytes[-8:])
+        logging.info(f"Active mass: {active_mass} mg")
+
+        # Get the remarks
+        remarks = bytes[363:491].decode('ASCII')
+
+        # Clean null characters
+        remarks = remarks.replace(chr(0), '').strip()
+        logging.info(f"Remarks: {remarks}")
+
     return output, aux
 
 
