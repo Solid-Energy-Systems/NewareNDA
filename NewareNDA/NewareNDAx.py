@@ -147,6 +147,12 @@ def _read_data_ndc(file):
         mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
         mm_size = mm.size()
 
+        # Choose multipliers based on ndc file version
+        [ndc_version] = struct.unpack('<B', mm[2:3])
+        multipliers = [1e-4, 1]
+        if ndc_version == 14:
+            multipliers = [1, 1000]
+
         # Identify the beginning of the data section
         record_len = 4096
         header = 4096
@@ -158,10 +164,10 @@ def _read_data_ndc(file):
             bytes = mm.read(record_len)
             for i in struct.iter_unpack('<ff', bytes[132:-4]):
                 if (i[0] != 0):
-                    rec.append([i[0]/10000, i[1]])
+                    rec.append([i[0], i[1]])
 
     # Create DataFrame
-    df = pd.DataFrame(rec, columns=['Voltage', 'Current(mA)'])
+    df = multipliers*pd.DataFrame(rec, columns=['Voltage', 'Current(mA)'])
     df['Index'] = df.index + 1
     return df
 
