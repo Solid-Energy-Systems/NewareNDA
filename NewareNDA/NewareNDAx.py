@@ -9,7 +9,7 @@ import logging
 import tempfile
 import zipfile
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 import xml.etree.ElementTree as ET
 import pandas as pd
 
@@ -207,7 +207,8 @@ def _read_data_runInfo_ndc(file):
                     rec.append([Time/1000,
                                 Charge_Capacity/3600, Discharge_Capacity/3600,
                                 Charge_Energy/3600, Discharge_Energy/3600,
-                                datetime.fromtimestamp(Timestamp), Step, Index])
+                                datetime.fromtimestamp(Timestamp, timezone.utc).astimezone(),
+                                Step, Index])
 
     # Create DataFrame
     df = pd.DataFrame(rec, columns=[

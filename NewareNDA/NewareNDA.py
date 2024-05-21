@@ -7,7 +7,7 @@ import mmap
 import struct
 import warnings
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 import pandas as pd
 
 from NewareNDA.dicts import rec_columns, aux_columns, dtype_dict, \
@@ -270,7 +270,7 @@ def _bytes_to_list_BTS9(bytes):
         Discharge_Capacity/3600,
         Charge_Energy/3600,
         Discharge_Energy/3600,
-        datetime.fromtimestamp(Date/1e6)
+        datetime.fromtimestamp(Date/1e6, timezone.utc).astimezone()
     ]
     return list
 
