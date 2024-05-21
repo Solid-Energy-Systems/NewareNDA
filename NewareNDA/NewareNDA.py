@@ -15,6 +15,8 @@ from NewareNDA.dicts import rec_columns, aux_columns, dtype_dict, \
 from .NewareNDAx import read_ndax
 
 
+logger = logging.getLogger('newarenda')
+
 def read(file, software_cycle_number=True, cycle_mode='chg'):
     """
     Read electrochemical data from an Neware nda or ndax binary file.
@@ -36,6 +38,7 @@ def read(file, software_cycle_number=True, cycle_mode='chg'):
     elif ext == '.ndax':
         return read_ndax(file, software_cycle_number, cycle_mode)
     else:
+        logger.error("File type not supported!")
         raise TypeError("File type not supported!")
 
 
@@ -58,26 +61,28 @@ def read_nda(file, software_cycle_number, cycle_mode='chg'):
         mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
 
         if mm.read(6) != b'NEWARE':
+            logger.error(f"{file} does not appear to be a Neware file.")
             raise ValueError(f"{file} does not appear to be a Neware file.")
 
         # Get the file version
         [nda_version] = struct.unpack('<B', mm[14:15])
-        logging.info(f"NDA version: {nda_version}")
+        logger.info(f"NDA version: {nda_version}")
 
         # Try to find server and client version info
         version_loc = mm.find(b'BTSServer')
         if version_loc != -1:
             mm.seek(version_loc)
             server = mm.read(50).strip(b'\x00').decode()
-            logging.info(f"Server: {server}")
+            logger.info(f"Server: {server}")
             mm.seek(50, 1)
             client = mm.read(50).strip(b'\x00').decode()
-            logging.info(f"Client: {client}")
+            logger.info(f"Client: {client}")
         else:
-            logging.info("BTS version not found!")
+            logger.info("BTS version not found!")
 
         # version specific settings
         if nda_version == 8:
+            logger.error("nda version 8 is not supported!")
             raise NotImplementedError("nda version 8 is not supported!")
         elif nda_version < 130:
             output, aux = _read_nda(mm)
@@ -120,6 +125,7 @@ def _read_nda(mm):
     identifier = b'\x00\x00\x00\x00\x55\x00'
     header = mm.find(identifier)
     if header == -1:
+        logger.error("File does not contain any valid records.")
         raise EOFError("File does not contain any valid records.")
     while (((mm[header + 4 + record_len] != 85)
             | (not _valid_record(mm[header+4:header+4+record_len])))
@@ -270,7 +276,8 @@ def _generate_cycle_number(df, cycle_mode='chg'):
             _, cycle_mode = first_state.split('_', 1)
         except ValueError:
             # Status is SIM or otherwise. Set mode to chg
-            warnings.warn("First Step not recognized. Defaulting to Cycle_Mode 'Charge'.")
+            warnings.warn(f"First Step '{first_state}' not recognized. Defaulting to Cycle_Mode 'Charge'.")
+            logger.warning(f"First Step '{first_state}' not recognized. Defaulting to Cycle_Mode 'Charge'.")
             cycle_mode = 'chg'
 
     # Set increment key and non-increment/off key
@@ -281,6 +288,7 @@ def _generate_cycle_number(df, cycle_mode='chg'):
         inkey = 'DChg'
         offkey = 'Chg'
     else:
+        logger.error(f"Cycle_Mode '{cycle_mode}' not recognized. Supported options are 'chg', 'dchg', and 'auto'.")
         raise KeyError(f"Cycle_Mode '{cycle_mode}' not recognized. Supported options are 'chg', 'dchg', and 'auto'.")
 
     # Identify the beginning of key incremental steps

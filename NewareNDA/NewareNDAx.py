@@ -18,6 +18,8 @@ from NewareNDA.dicts import rec_columns, dtype_dict, state_dict, \
      multiplier_dict
 
 
+logger = logging.getLogger('newarenda')
+
 def read_ndax(file, software_cycle_number=False, cycle_mode='chg'):
     """
     Function to read electrochemical data from a Neware ndax binary file.
@@ -40,10 +42,10 @@ def read_ndax(file, software_cycle_number=False, cycle_mode='chg'):
         try:
             with open(version_info, 'r', encoding='gb2312') as f:
                 config = ET.fromstring(f.read()).find('config/ZwjVersion')
-            logging.info(f"SvrVer: {config.attrib['SvrVer']}")
-            logging.info(f"CurrClientVer: {config.attrib['CurrClientVer']}")
-            logging.info(f"ZwjVersion: {config.attrib['ZwjVersion']}")
-            logging.info(f"MainXwjVer: {config.attrib['MainXwjVer']}")
+            logger.info(f"SvrVer: {config.attrib['SvrVer']}")
+            logger.info(f"CurrClientVer: {config.attrib['CurrClientVer']}")
+            logger.info(f"ZwjVersion: {config.attrib['ZwjVersion']}")
+            logger.info(f"MainXwjVer: {config.attrib['MainXwjVer']}")
         except Exception:
             pass
 
@@ -250,7 +252,7 @@ def read_ndc(file):
 
         # Get ndc file version
         [ndc_version] = struct.unpack('<B', mm[2:3])
-        logging.info(f"NDC version: {ndc_version}")
+        logger.info(f"NDC version: {ndc_version}")
 
         if ndc_version == 5:
             return _read_ndc_5(mm)
@@ -278,7 +280,7 @@ def read_ndc(file):
             elif bytes[rec_byte] == b'\x74':
                 aux.append(_aux_bytes_74_to_list_ndc(bytes))
             else:
-                logging.warning("Unknown record type: "+bytes[rec_byte].hex())
+                logger.warning("Unknown record type: "+bytes[rec_byte].hex())
 
             header = mm.find(identifier, header - offset + record_len)
 
