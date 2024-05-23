@@ -118,13 +118,15 @@ def _read_nda(mm):
     # Get the active mass
     [active_mass] = struct.unpack('<I', mm[152:156])
     logging.info(f"Active mass: {active_mass/1000} mg")
-    
-    # Get the remarks
-    remarks = mm[2317:2417].decode('ASCII')
-    
-    # Clean null characters
-    remarks = remarks.replace(chr(0), '').strip()
-    logging.info(f"Remarks: {remarks}")
+
+    try:
+        remarks = mm[2317:2417].decode('ASCII')
+        # Clean null characters
+        remarks = remarks.replace(chr(0), '').strip()
+        logging.info(f"Remarks: {remarks}")
+    except UnicodeDecodeError:
+        logging.warning(f"Converting remark bytes into ASCII failed")
+        remarks = ""
 
     # Identify the beginning of the data section
     record_len = 86
