@@ -17,7 +17,7 @@ from .NewareNDAx import read_ndax
 
 logger = logging.getLogger('newarenda')
 
-def read(file, software_cycle_number=True, cycle_mode='chg'):
+def read(file, software_cycle_number=True, cycle_mode='chg', log_level='INFO'):
     """
     Read electrochemical data from an Neware nda or ndax binary file.
 
@@ -29,9 +29,23 @@ def read(file, software_cycle_number=True, cycle_mode='chg'):
             'chg': (Default) Sets new cycles with a Charge step following a Discharge.
             'dchg': Sets new cycles with a Discharge step following a Charge.
             'auto': Identifies the first non-rest state as the incremental state.
+        log_level (str): Sets the modules logging level. Default: 'INFO'
+            Options: 'CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG', 'NOTSET'
     Returns:
         df (pd.DataFrame): DataFrame containing all records in the file
     """
+    
+    
+    # Set up logging
+    log_level = log_level.upper()
+    if log_level in logging._nameToLevel.keys():
+        logger.setLevel(log_level)
+    else:
+        warnings.warn(f"Logging level '{log_level}' not supported; Defaulting to 'INFO'. "
+                      "Supported options are: {', '.join(logging._nameToLevel.keys())}")
+        logger.warn(f"Logging level '{log_level}' not supported; Defaulting to 'INFO'.")
+    
+    # Identify file type and process accordingly
     _, ext = os.path.splitext(file)
     if ext == '.nda':
         return read_nda(file, software_cycle_number, cycle_mode)
