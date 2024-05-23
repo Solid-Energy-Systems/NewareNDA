@@ -294,13 +294,7 @@ def _generate_cycle_number(df, cycle_mode='chg'):
 
     # Auto: find the first non rest cycle
     if cycle_mode.lower() == 'auto':
-        first_state = df[df['Status'] != 'Rest']['Status'].iat[0]
-        try:
-            _, cycle_mode = first_state.split('_', 1)
-        except ValueError:
-            # Status is SIM or otherwise. Set mode to chg
-            warnings.warn("First Step not recognized. Defaulting to Cycle_Mode 'Charge'.")
-            cycle_mode = 'chg'
+        cycle_mode = _id_first_state(df)
 
     # Set increment key and non-increment/off key
     if cycle_mode.lower() == 'chg':
@@ -355,3 +349,23 @@ def _count_changes(series):
     a.iloc[0] = 1
     a.iloc[-1] = 0
     return (abs(a) > 0).cumsum()
+
+
+def _id_first_state(df):
+    """Helper function to identify the first non-rest state in a cycling profile"""
+    nonrest_states = df[df['Status'] != 'Rest']['Status']
+
+    # If no non-rest cycles exist, just pick a mode; it doesn't matter.
+    if len(nonrest_states) > 0:
+        first_state = nonrest_states.iat[0]
+    else:
+        return 'chg'
+
+    try:
+        _, cycle_mode = first_state.split('_', 1)
+    except ValueError:
+        # Status is SIM or otherwise. Set mode to chg
+        warnings.warn("First Step not recognized. Defaulting to Cycle_Mode 'Charge'.")
+        cycle_mode = 'chg'
+
+    return cycle_mode.lower()
