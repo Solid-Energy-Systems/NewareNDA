@@ -97,9 +97,8 @@ def read_nda(file, software_cycle_number, cycle_mode='chg'):
     aux_df = pd.DataFrame(aux, columns=aux_columns)
     aux_df.drop_duplicates(inplace=True)
     if not aux_df.empty:
-        pvt_df = aux_df.pivot(index='Index', columns='Aux', values='T')
-        for k in pvt_df.keys():
-            pvt_df.rename(columns={k: f"T{k}"}, inplace=True)
+        pvt_df = aux_df.pivot(index='Index', columns='Aux')
+        pvt_df.columns = pvt_df.columns.map(lambda x: ''.join(map(str, x)))
         df = df.join(pvt_df, on='Index')
 
     # Postprocessing
@@ -278,9 +277,10 @@ def _bytes_to_list_BTS9(bytes):
 def _aux_bytes_to_list(bytes):
     """Helper function for intepreting auxiliary records"""
     [Aux, Index] = struct.unpack('<BI', bytes[1:6])
+    [V] = struct.unpack('<i', bytes[22:26])
     [T] = struct.unpack('<h', bytes[34:36])
 
-    return [Index, Aux, T/10]
+    return [Index, Aux, T/10, V/10000]
 
 
 def _generate_cycle_number(df, cycle_mode='chg'):
