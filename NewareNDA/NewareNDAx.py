@@ -9,7 +9,7 @@ import logging
 import tempfile
 import zipfile
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 import xml.etree.ElementTree as ET
 import pandas as pd
 
@@ -38,14 +38,24 @@ def read_ndax(file, software_cycle_number=False, cycle_mode='chg'):
         zf = zipfile.PyZipFile(file)
 
         # Read version information
-        version_info = zf.extract('VersionInfo.xml', path=tmpdir)
         try:
+            version_info = zf.extract('VersionInfo.xml', path=tmpdir)
             with open(version_info, 'r', encoding='gb2312') as f:
                 config = ET.fromstring(f.read()).find('config/ZwjVersion')
-            logger.info(f"SvrVer: {config.attrib['SvrVer']}")
-            logger.info(f"CurrClientVer: {config.attrib['CurrClientVer']}")
-            logger.info(f"ZwjVersion: {config.attrib['ZwjVersion']}")
-            logger.info(f"MainXwjVer: {config.attrib['MainXwjVer']}")
+            logger.info(f"Server version: {config.attrib['SvrVer']}")
+            logger.info(f"Client version: {config.attrib['CurrClientVer']}")
+            logger.info(f"Control unit version: {config.attrib['ZwjVersion']}")
+            logger.info(f"Tester version: {config.attrib['MainXwjVer']}")
+        except Exception:
+            pass
+
+        # Read active mass
+        try:
+            step = zf.extract('Step.xml', path=tmpdir)
+            with open(step, 'r', encoding='gb2312') as f:
+                config = ET.fromstring(f.read()).find('config')
+            active_mass = float(config.find('Head_Info/SCQ').attrib['Value'])
+            logging.info(f"Active mass: {active_mass/1000} mg")
         except Exception:
             pass
 
@@ -149,6 +159,12 @@ def _read_data_ndc(file):
         mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
         mm_size = mm.size()
 
+        # Choose multipliers based on ndc file version
+        [ndc_version] = struct.unpack('<B', mm[2:3])
+        multipliers = [1e-4, 1]
+        if ndc_version == 14:
+            multipliers = [1, 1000]
+
         # Identify the beginning of the data section
         record_len = 4096
         header = 4096
@@ -160,10 +176,10 @@ def _read_data_ndc(file):
             bytes = mm.read(record_len)
             for i in struct.iter_unpack('<ff', bytes[132:-4]):
                 if (i[0] != 0):
-                    rec.append([i[0]/10000, i[1]])
+                    rec.append([i[0], i[1]])
 
     # Create DataFrame
-    df = pd.DataFrame(rec, columns=['Voltage', 'Current(mA)'])
+    df = multipliers*pd.DataFrame(rec, columns=['Voltage', 'Current(mA)'])
     df['Index'] = df.index + 1
     return df
 
@@ -176,10 +192,12 @@ def _read_data_runInfo_ndc(file):
         # Choose byte format based on ndc file version
         [ndc_version] = struct.unpack('<B', mm[2:3])
         format = '<isffff12siii2s'
+        multipliers = [1e-3, 1/3600, 1/3600, 1/3600, 1/3600]
         end_byte = -63
         if ndc_version >= 14:
             format = '<isffff12siii10s'
             end_byte = -59
+            multipliers = [1e-3, 1000, 1000, 1000, 1000]
 
         # Identify the beginning of the data section
         record_len = 4096
@@ -196,17 +214,18 @@ def _read_data_runInfo_ndc(file):
                 [Charge_Energy, Discharge_Energy] = [i[4], i[5]]
                 [Timestamp, Step, Index] = [i[7], i[8], i[9]]
                 if Index != 0:
-                    rec.append([Time/1000,
-                                Charge_Capacity/3600, Discharge_Capacity/3600,
-                                Charge_Energy/3600, Discharge_Energy/3600,
-                                datetime.fromtimestamp(Timestamp), Step, Index])
+                    rec.append([Time,
+                                Charge_Capacity, Discharge_Capacity,
+                                Charge_Energy, Discharge_Energy,
+                                datetime.fromtimestamp(Timestamp, timezone.utc).astimezone(), Step, Index])
 
     # Create DataFrame
     df = pd.DataFrame(rec, columns=[
         'Time',
         'Charge_Capacity(mAh)', 'Discharge_Capacity(mAh)',
         'Charge_Energy(mWh)', 'Discharge_Energy(mWh)',
-        'Timestamp', 'Step', 'Index'])
+        'Timestamp', 'Step', 'Index']).astype({'Time': 'float'})
+    df.iloc[:, 0:5] *= multipliers
     df['Step'] = NewareNDA.NewareNDA._count_changes(df['Step'])
 
     return df
