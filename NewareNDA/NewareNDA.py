@@ -7,7 +7,7 @@ import mmap
 import struct
 import warnings
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 import pandas as pd
 
 from NewareNDA.dicts import rec_columns, aux_columns, dtype_dict, \
@@ -134,6 +134,17 @@ def _read_nda(mm):
     """Helper function for older nda verions < 130"""
     mm_size = mm.size()
 
+    # Get the active mass
+    [active_mass] = struct.unpack('<I', mm[152:156])
+    logging.info(f"Active mass: {active_mass/1000} mg")
+    
+    # Get the remarks
+    remarks = mm[2317:2417].decode('ASCII')
+    
+    # Clean null characters
+    remarks = remarks.replace(chr(0), '').strip()
+    logging.info(f"Remarks: {remarks}")
+
     # Identify the beginning of the data section
     record_len = 86
     identifier = b'\x00\x00\x00\x00\x55\x00'
@@ -191,6 +202,24 @@ def _read_nda_130(mm):
             # Check for an auxiliary record
             elif bytes[0:5] == b'\x00\x00\x00\x00\x65':
                 aux.append(_aux_bytes_to_list(bytes[4:]))
+
+    # Find footer data block
+    footer = mm.rfind(b'\x06\x00\xf0\x1d\x81\x00\x03\x00\x61\x90\x71\x90\x02\x7f\xff\x00', 1024)
+    if footer != -1:
+        mm.seek(footer+16)
+        bytes = mm.read(499)
+
+        # Get the active mass
+        [active_mass] = struct.unpack('<d', bytes[-8:])
+        logging.info(f"Active mass: {active_mass} mg")
+
+        # Get the remarks
+        remarks = bytes[363:491].decode('ASCII')
+
+        # Clean null characters
+        remarks = remarks.replace(chr(0), '').strip()
+        logging.info(f"Remarks: {remarks}")
+
     return output, aux
 
 
@@ -261,7 +290,7 @@ def _bytes_to_list_BTS9(bytes):
         Discharge_Capacity/3600,
         Charge_Energy/3600,
         Discharge_Energy/3600,
-        datetime.fromtimestamp(Date/1e6)
+        datetime.fromtimestamp(Date/1e6, timezone.utc).astimezone()
     ]
     return list
 
@@ -285,14 +314,7 @@ def _generate_cycle_number(df, cycle_mode='chg'):
 
     # Auto: find the first non rest cycle
     if cycle_mode.lower() == 'auto':
-        first_state = df[df['Status'] != 'Rest']['Status'].iat[0]
-        try:
-            _, cycle_mode = first_state.split('_', 1)
-        except ValueError:
-            # Status is SIM or otherwise. Set mode to chg
-            warnings.warn(f"First Step '{first_state}' not recognized. Defaulting to Cycle_Mode 'Charge'.")
-            logger.warning(f"First Step '{first_state}' not recognized. Defaulting to Cycle_Mode 'Charge'.")
-            cycle_mode = 'chg'
+        cycle_mode = _id_first_state(df)
 
     # Set increment key and non-increment/off key
     if cycle_mode.lower() == 'chg':
@@ -348,3 +370,23 @@ def _count_changes(series):
     a.iloc[0] = 1
     a.iloc[-1] = 0
     return (abs(a) > 0).cumsum()
+
+
+def _id_first_state(df):
+    """Helper function to identify the first non-rest state in a cycling profile"""
+    nonrest_states = df[df['Status'] != 'Rest']['Status']
+
+    # If no non-rest cycles exist, just pick a mode; it doesn't matter.
+    if len(nonrest_states) > 0:
+        first_state = nonrest_states.iat[0]
+    else:
+        return 'chg'
+
+    try:
+        _, cycle_mode = first_state.split('_', 1)
+    except ValueError:
+        # Status is SIM or otherwise. Set mode to chg
+        warnings.warn("First Step not recognized. Defaulting to Cycle_Mode 'Charge'.")
+        cycle_mode = 'chg'
+
+    return cycle_mode.lower()
