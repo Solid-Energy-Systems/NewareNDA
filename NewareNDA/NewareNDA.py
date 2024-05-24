@@ -82,6 +82,7 @@ def read_nda(file, software_cycle_number, cycle_mode='chg'):
         elif nda_version == 130:
             output, aux = _read_nda_130(mm)
         else:
+            logging.error(f"nda version {nda_version} is not yet supported!")
             raise NotImplementedError(f"nda version {nda_version} is not yet supported!")
 
     # Create DataFrame and sort by Index
@@ -112,7 +113,7 @@ def read_nda(file, software_cycle_number, cycle_mode='chg'):
 
 
 def _read_nda_29(mm):
-    """Helper function for older nda verions < 130"""
+    """Helper function for nda version 29"""
     mm_size = mm.size()
 
     # Get the active mass
