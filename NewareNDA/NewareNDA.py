@@ -77,12 +77,13 @@ def read_nda(file, software_cycle_number, cycle_mode='chg'):
             logging.info("BTS version not found!")
 
         # version specific settings
-        if nda_version == 8:
-            raise NotImplementedError("nda version 8 is not supported!")
-        elif nda_version < 130:
-            output, aux = _read_nda(mm)
-        else:
+        if nda_version == 29:
+            output, aux = _read_nda_29(mm)
+        elif nda_version == 130:
             output, aux = _read_nda_130(mm)
+        else:
+            logging.error(f"nda version {nda_version} is not yet supported!")
+            raise NotImplementedError(f"nda version {nda_version} is not yet supported!")
 
     # Create DataFrame and sort by Index
     df = pd.DataFrame(output, columns=rec_columns)
@@ -110,8 +111,8 @@ def read_nda(file, software_cycle_number, cycle_mode='chg'):
     return df
 
 
-def _read_nda(mm):
-    """Helper function for older nda verions < 130"""
+def _read_nda_29(mm):
+    """Helper function for nda version 29"""
     mm_size = mm.size()
 
     # Get the active mass
