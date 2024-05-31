@@ -5,7 +5,6 @@
 import os
 import mmap
 import struct
-import warnings
 import logging
 from datetime import datetime, timezone
 import pandas as pd
@@ -368,7 +367,7 @@ def _id_first_state(df):
         _, cycle_mode = first_state.split('_', 1)
     except ValueError:
         # Status is SIM or otherwise. Set mode to chg
-        warnings.warn("First Step not recognized. Defaulting to Cycle_Mode 'Charge'.")
+        logging.warning("First Step not recognized. Defaulting to Cycle_Mode 'Charge'.")
         cycle_mode = 'chg'
 
     return cycle_mode.lower()

@@ -4,7 +4,6 @@
 
 import mmap
 import struct
-import warnings
 import logging
 import tempfile
 import zipfile
@@ -112,8 +111,8 @@ def _data_interpolation(df):
     nan_mask = df['Time'].notnull()
 
     if nan_mask.any():
-        warnings.warn("IMPORTANT: This ndax has missing data. The output from "
-                      "NewareNDA contains interpolated data!")
+        logging.warning("IMPORTANT: This ndax has missing data. The output "
+                        "from NewareNDA contains interpolated data!")
 
     # Group by step and run 'inside' interpolation on Time
     df['Time'] = df.groupby('Step')['Time'].transform(
