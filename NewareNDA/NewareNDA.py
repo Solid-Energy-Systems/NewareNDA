@@ -95,13 +95,13 @@ def read_nda(file, software_cycle_number, cycle_mode='chg'):
             logger.info("BTS version not found!")
 
         # version specific settings
-        if nda_version == 8:
-            logger.error("nda version 8 is not supported!")
-            raise NotImplementedError("nda version 8 is not supported!")
-        elif nda_version < 130:
-            output, aux = _read_nda(mm)
-        else:
+        if nda_version == 29:
+            output, aux = _read_nda_29(mm)
+        elif nda_version == 130:
             output, aux = _read_nda_130(mm)
+        else:
+            logger.error(f"nda version {nda_version} is not yet supported!")
+            raise NotImplementedError(f"nda version {nda_version} is not yet supported!")
 
     # Create DataFrame and sort by Index
     df = pd.DataFrame(output, columns=rec_columns)
@@ -116,9 +116,8 @@ def read_nda(file, software_cycle_number, cycle_mode='chg'):
     aux_df = pd.DataFrame(aux, columns=aux_columns)
     aux_df.drop_duplicates(inplace=True)
     if not aux_df.empty:
-        pvt_df = aux_df.pivot(index='Index', columns='Aux', values='T')
-        for k in pvt_df.keys():
-            pvt_df.rename(columns={k: f"T{k}"}, inplace=True)
+        pvt_df = aux_df.pivot(index='Index', columns='Aux')
+        pvt_df.columns = pvt_df.columns.map(lambda x: ''.join(map(str, x)))
         df = df.join(pvt_df, on='Index')
 
     # Postprocessing
@@ -130,20 +129,22 @@ def read_nda(file, software_cycle_number, cycle_mode='chg'):
     return df
 
 
-def _read_nda(mm):
-    """Helper function for older nda verions < 130"""
+def _read_nda_29(mm):
+    """Helper function for nda version 29"""
     mm_size = mm.size()
 
     # Get the active mass
     [active_mass] = struct.unpack('<I', mm[152:156])
     logging.info(f"Active mass: {active_mass/1000} mg")
-    
-    # Get the remarks
-    remarks = mm[2317:2417].decode('ASCII')
-    
-    # Clean null characters
-    remarks = remarks.replace(chr(0), '').strip()
-    logging.info(f"Remarks: {remarks}")
+
+    try:
+        remarks = mm[2317:2417].decode('ASCII')
+        # Clean null characters
+        remarks = remarks.replace(chr(0), '').strip()
+        logging.info(f"Remarks: {remarks}")
+    except UnicodeDecodeError:
+        logging.warning(f"Converting remark bytes into ASCII failed")
+        remarks = ""
 
     # Identify the beginning of the data section
     record_len = 86
@@ -298,9 +299,10 @@ def _bytes_to_list_BTS9(bytes):
 def _aux_bytes_to_list(bytes):
     """Helper function for intepreting auxiliary records"""
     [Aux, Index] = struct.unpack('<BI', bytes[1:6])
+    [V] = struct.unpack('<i', bytes[22:26])
     [T] = struct.unpack('<h', bytes[34:36])
 
-    return [Index, Aux, T/10]
+    return [Index, Aux, T/10, V/10000]
 
 
 def _generate_cycle_number(df, cycle_mode='chg'):

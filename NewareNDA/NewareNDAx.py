@@ -273,35 +273,42 @@ def read_ndc(file):
         [ndc_version] = struct.unpack('<B', mm[2:3])
         logger.info(f"NDC version: {ndc_version}")
 
+        if ndc_version == 2:
+            return _read_ndc_2(mm)
         if ndc_version == 5:
             return _read_ndc_5(mm)
         elif ndc_version == 11:
             return _read_ndc_11(mm)
+        else:
+            raise NotImplementedError(f"ndc version {ndc_version} is not yet supported!")
 
-        # Identify the beginning of the data section
-        record_len = 94
-        offset = 0
-        identifier = mm[517:525]
-        id_byte = slice(0, 1)
-        rec_byte = slice(0, 1)
 
-        # Read data records
-        output = []
-        aux = []
-        header = mm.find(identifier)
-        while header != -1:
-            mm.seek(header - offset)
-            bytes = mm.read(record_len)
-            if bytes[rec_byte] == b'\x55':
-                output.append(_bytes_to_list_ndc(bytes))
-            elif bytes[rec_byte] == b'\x65':
-                aux.append(_aux_bytes_65_to_list_ndc(bytes))
-            elif bytes[rec_byte] == b'\x74':
-                aux.append(_aux_bytes_74_to_list_ndc(bytes))
-            else:
-                logger.warning("Unknown record type: "+bytes[rec_byte].hex())
+def _read_ndc_2(mm):
+    """Helper function that reads records and aux data from ndc version 2"""
+    record_len = 94
+    offset = 0
+    identifier = mm[517:525]
+    id_byte = slice(0, 1)
+    rec_byte = slice(0, 1)
 
-            header = mm.find(identifier, header - offset + record_len)
+    # Read data records
+    output = []
+    aux = []
+    header = mm.find(identifier)
+    while header != -1:
+        mm.seek(header - offset)
+        bytes = mm.read(record_len)
+        if bytes[rec_byte] == b'\x55':
+            output.append(_bytes_to_list_ndc(bytes))
+        elif bytes[rec_byte] == b'\x65':
+            aux.append(_aux_bytes_65_to_list_ndc(bytes))
+        elif bytes[rec_byte] == b'\x74':
+            aux.append(_aux_bytes_74_to_list_ndc(bytes))
+        else:
+            logger.warning("Unknown record type: "+bytes[rec_byte].hex())
+
+        header = mm.find(identifier, header - offset + record_len)
+
 
     # Create DataFrame and sort by Index
     df = pd.DataFrame(output, columns=rec_columns)
