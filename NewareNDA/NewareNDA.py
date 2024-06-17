@@ -167,6 +167,8 @@ def _read_nda_130(mm):
     # Identify the beginning of the data section
     record_len = 88
     identifier = mm[1024:1030]
+    if mm[1024:1025] == b'\x55':  # BTS 9.1
+        record_len = 56
     mm.seek(1024)
 
     # Read data records
@@ -177,7 +179,9 @@ def _read_nda_130(mm):
         if len(bytes) == record_len:
 
             # Check for a data record
-            if bytes[0:6] == identifier:
+            if bytes[0:1] == b'\x55':
+                output.append(_bytes_to_list_BTS91(bytes))
+            elif bytes[0:6] == identifier:
                 output.append(_bytes_to_list_BTS9(bytes[4:]))
 
             # Check for an auxiliary record
@@ -272,6 +276,37 @@ def _bytes_to_list_BTS9(bytes):
         Charge_Energy/3600,
         Discharge_Energy/3600,
         datetime.fromtimestamp(Date/1e6, timezone.utc).astimezone()
+    ]
+    return list
+
+
+def _bytes_to_list_BTS91(bytes):
+    """Helper function to interpret byte strings from BTS9.1"""
+    [Step, Status] = struct.unpack('<BB', bytes[2:4])
+    [Index, Time] = struct.unpack('<II', bytes[8:16])
+    [Current, Voltage, Capacity, Energy] = struct.unpack('<ffff', bytes[20:36])
+    [Date] = struct.unpack('<I', bytes[44:48])
+
+    # Convert capacity and energy to charge and discharge fields
+    Charge_Capacity = 0 if Capacity < 0 else Capacity
+    Discharge_Capacity = 0 if Capacity > 0 else abs(Capacity)
+    Charge_Energy = 0 if Energy < 0 else Energy
+    Discharge_Energy = 0 if Energy > 0 else abs(Energy)
+
+    # Create a dictionary for the record
+    list = [
+        Index,
+        0,
+        Step,
+        state_dict[Status],
+        Time,
+        Voltage,
+        Current,
+        Charge_Capacity/3600,
+        Discharge_Capacity/3600,
+        Charge_Energy/3600,
+        Discharge_Energy/3600,
+        datetime.fromtimestamp(Date, timezone.utc).astimezone()
     ]
     return list
 
