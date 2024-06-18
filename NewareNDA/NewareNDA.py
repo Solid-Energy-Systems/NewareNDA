@@ -188,6 +188,9 @@ def _read_nda_130(mm):
             elif bytes[0:5] == b'\x00\x00\x00\x00\x65':
                 aux.append(_aux_bytes_to_list(bytes[4:]))
 
+            elif bytes[0:1] == b'\x81':
+                break
+
     # Find footer data block
     footer = mm.rfind(b'\x06\x00\xf0\x1d\x81\x00\x03\x00\x61\x90\x71\x90\x02\x7f\xff\x00', 1024)
     if footer != -1:
