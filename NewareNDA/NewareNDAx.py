@@ -365,15 +365,28 @@ def _read_ndc_11(mm):
     # Read data records
     aux = []
     mm.seek(header)
-    while mm.tell() < mm_size:
-        bytes = mm.read(record_len)
-        for i in struct.iter_unpack('<cfh', bytes[132:-2]):
-            if i[0] == b'\x65':
-                aux.append([i[1]/10000, i[2]/10])
 
-    # Create DataFrame
-    aux_df = pd.DataFrame(aux, columns=['V', 'T'])
-    aux_df['Index'] = aux_df.index + 1
+    if mm[header+132:header+133] == b'\x65':
+        while mm.tell() < mm_size:
+            bytes = mm.read(record_len)
+            for i in struct.iter_unpack('<cfh', bytes[132:-2]):
+                if i[0] == b'\x65':
+                    aux.append([i[1]/10000, i[2]/10])
+
+        # Create DataFrame
+        aux_df = pd.DataFrame(aux, columns=['V', 'T'])
+        aux_df['Index'] = aux_df.index + 1
+
+    elif mm[header+132:header+133] == b'\x74':
+        while mm.tell() < mm_size:
+            bytes = mm.read(record_len)
+            for i in struct.iter_unpack('<cib29sh51s', bytes[132:-4]):
+                if i[0] == b'\x74':
+                    aux.append([i[1], i[2], i[4]/10])
+
+        # Create DataFrame
+        aux_df = pd.DataFrame(aux, columns=['Index', 'Aux', 'T'])
+
     return None, aux_df
 
 
