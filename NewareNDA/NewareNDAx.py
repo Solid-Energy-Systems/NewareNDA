@@ -283,28 +283,25 @@ def read_ndc(file):
 def _read_ndc_2(mm):
     """Helper function that reads records and aux data from ndc version 2"""
     record_len = 94
-    offset = 0
     identifier = mm[517:525]
-    id_byte = slice(0, 1)
-    rec_byte = slice(0, 1)
 
     # Read data records
     output = []
     aux = []
     header = mm.find(identifier)
     while header != -1:
-        mm.seek(header - offset)
+        mm.seek(header)
         bytes = mm.read(record_len)
-        if bytes[rec_byte] == b'\x55':
+        if bytes[0:1] == b'\x55':
             output.append(_bytes_to_list_ndc(bytes))
-        elif bytes[rec_byte] == b'\x65':
+        elif bytes[0:1] == b'\x65':
             aux.append(_aux_bytes_65_to_list_ndc(bytes))
-        elif bytes[rec_byte] == b'\x74':
+        elif bytes[0:1] == b'\x74':
             aux.append(_aux_bytes_74_to_list_ndc(bytes))
         else:
-            logging.warning("Unknown record type: "+bytes[rec_byte].hex())
+            logging.warning("Unknown record type: "+bytes[0:1].hex())
 
-        header = mm.find(identifier, header - offset + record_len)
+        header = mm.find(identifier, header + record_len)
 
     # Create DataFrame and sort by Index
     df = pd.DataFrame(output, columns=rec_columns)
@@ -312,9 +309,9 @@ def _read_ndc_2(mm):
     # Postprocessing
     aux_df = pd.DataFrame([])
     df = df.astype(dtype=dtype_dict)
-    if identifier[id_byte] == b'\x65':
+    if identifier[0:1] == b'\x65':
         aux_df = pd.DataFrame(aux, columns=['Index', 'Aux', 'V', 'T'])
-    elif identifier[id_byte] == b'\x74':
+    elif identifier[0:1] == b'\x74':
         aux_df = pd.DataFrame(aux, columns=['Index', 'Aux', 'V', 'T', 't'])
 
     return df, aux_df
@@ -325,7 +322,6 @@ def _read_ndc_5(mm):
     mm_size = mm.size()
     record_len = 4096
     header = 4096
-    rec_byte = slice(7, 8)
 
     # Read data records
     output = []
@@ -335,11 +331,11 @@ def _read_ndc_5(mm):
     while mm.tell() < mm_size:
         bytes = mm.read(record_len)
         for i in struct.iter_unpack('<87s', bytes[125:-56]):
-            if i[0][rec_byte] == b'\x55':
+            if i[0][7:8] == b'\x55':
                 output.append(_bytes_to_list_ndc(i[0]))
-            if i[0][rec_byte] == b'\x65':
+            if i[0][7:8] == b'\x65':
                 aux65.append(_aux_bytes_65_to_list_ndc(i[0]))
-            elif i[0][rec_byte] == b'\x74':
+            elif i[0][7:8] == b'\x74':
                 aux74.append(_aux_bytes_74_to_list_ndc(i[0]))
 
     # Create DataFrames
