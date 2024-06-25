@@ -158,9 +158,12 @@ def _read_data_ndc(file):
 
         # Choose multipliers based on ndc file version
         [ndc_version] = struct.unpack('<B', mm[2:3])
-        multipliers = [1e-4, 1]
-        if ndc_version == 14:
+        if ndc_version == 11:
+            multipliers = [1e-4, 1]
+        elif ndc_version == 14:
             multipliers = [1, 1000]
+        else:
+            raise NotImplementedError(f"ndc version {ndc_version} is not yet supported!")
 
         # Identify the beginning of the data section
         record_len = 4096
@@ -188,13 +191,16 @@ def _read_data_runInfo_ndc(file):
 
         # Choose byte format based on ndc file version
         [ndc_version] = struct.unpack('<B', mm[2:3])
-        format = '<isffff12siii2s'
-        multipliers = [1e-3, 1/3600, 1/3600, 1/3600, 1/3600]
-        end_byte = -63
-        if ndc_version >= 14:
+        if ndc_version == 11:
+            format = '<isffff12siii2s'
+            multipliers = [1e-3, 1/3600, 1/3600, 1/3600, 1/3600]
+            end_byte = -63
+        elif ndc_version == 14:
             format = '<isffff12siii10s'
             end_byte = -59
             multipliers = [1e-3, 1000, 1000, 1000, 1000]
+        else:
+            raise NotImplementedError(f"ndc version {ndc_version} is not yet supported!")
 
         # Identify the beginning of the data section
         record_len = 4096
