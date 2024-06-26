@@ -5,11 +5,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [v2024.06.03]
+### Added
+- Active mass and comments are read and returned as a logging messages.
+- More regression tests.
+- Additional hardware ranges.
+- Aux voltage is now read from nda files.
+
+### Fixed
+- Correct voltage, current, capacity scalings for ndax files with ndc version 14 data.
+- Handling of timestamps now matches Neware. Dates are read as UTC and then converted to local time zone.
+
+### Changed
+- Warning now use logging.warning() instead of warnings.warn().
+
+
 ## [v2024.05.01]
 ### Added
 - Unsupported nda versions now raise exceptions.
 
-## Fixed
+### Fixed
 - More robust support for nda version 130
 
 

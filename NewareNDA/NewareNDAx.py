@@ -160,9 +160,12 @@ def _read_data_ndc(file):
 
         # Choose multipliers based on ndc file version
         [ndc_version] = struct.unpack('<B', mm[2:3])
-        multipliers = [1e-4, 1]
-        if ndc_version == 14:
+        if ndc_version == 11:
+            multipliers = [1e-4, 1]
+        elif ndc_version == 14:
             multipliers = [1, 1000]
+        else:
+            raise NotImplementedError(f"ndc version {ndc_version} is not yet supported!")
 
         # Identify the beginning of the data section
         record_len = 4096
@@ -190,13 +193,16 @@ def _read_data_runInfo_ndc(file):
 
         # Choose byte format based on ndc file version
         [ndc_version] = struct.unpack('<B', mm[2:3])
-        format = '<isffff12siii2s'
-        multipliers = [1e-3, 1/3600, 1/3600, 1/3600, 1/3600]
-        end_byte = -63
-        if ndc_version >= 14:
+        if ndc_version == 11:
+            format = '<isffff12siii2s'
+            multipliers = [1e-3, 1/3600, 1/3600, 1/3600, 1/3600]
+            end_byte = -63
+        elif ndc_version == 14:
             format = '<isffff12siii10s'
             end_byte = -59
             multipliers = [1e-3, 1000, 1000, 1000, 1000]
+        else:
+            raise NotImplementedError(f"ndc version {ndc_version} is not yet supported!")
 
         # Identify the beginning of the data section
         record_len = 4096
@@ -285,28 +291,25 @@ def read_ndc(file):
 def _read_ndc_2(mm):
     """Helper function that reads records and aux data from ndc version 2"""
     record_len = 94
-    offset = 0
     identifier = mm[517:525]
-    id_byte = slice(0, 1)
-    rec_byte = slice(0, 1)
 
     # Read data records
     output = []
     aux = []
     header = mm.find(identifier)
     while header != -1:
-        mm.seek(header - offset)
+        mm.seek(header)
         bytes = mm.read(record_len)
-        if bytes[rec_byte] == b'\x55':
+        if bytes[0:1] == b'\x55':
             output.append(_bytes_to_list_ndc(bytes))
-        elif bytes[rec_byte] == b'\x65':
+        elif bytes[0:1] == b'\x65':
             aux.append(_aux_bytes_65_to_list_ndc(bytes))
-        elif bytes[rec_byte] == b'\x74':
+        elif bytes[0:1] == b'\x74':
             aux.append(_aux_bytes_74_to_list_ndc(bytes))
         else:
             logger.warning("Unknown record type: "+bytes[0:1].hex())
 
-        header = mm.find(identifier, header - offset + record_len)
+        header = mm.find(identifier, header + record_len)
 
 
     # Create DataFrame and sort by Index
@@ -315,9 +318,9 @@ def _read_ndc_2(mm):
     # Postprocessing
     aux_df = pd.DataFrame([])
     df = df.astype(dtype=dtype_dict)
-    if identifier[id_byte] == b'\x65':
+    if identifier[0:1] == b'\x65':
         aux_df = pd.DataFrame(aux, columns=['Index', 'Aux', 'V', 'T'])
-    elif identifier[id_byte] == b'\x74':
+    elif identifier[0:1] == b'\x74':
         aux_df = pd.DataFrame(aux, columns=['Index', 'Aux', 'V', 'T', 't'])
 
     return df, aux_df
@@ -328,7 +331,6 @@ def _read_ndc_5(mm):
     mm_size = mm.size()
     record_len = 4096
     header = 4096
-    rec_byte = slice(7, 8)
 
     # Read data records
     output = []
@@ -338,11 +340,11 @@ def _read_ndc_5(mm):
     while mm.tell() < mm_size:
         bytes = mm.read(record_len)
         for i in struct.iter_unpack('<87s', bytes[125:-56]):
-            if i[0][rec_byte] == b'\x55':
+            if i[0][7:8] == b'\x55':
                 output.append(_bytes_to_list_ndc(i[0]))
-            if i[0][rec_byte] == b'\x65':
+            if i[0][7:8] == b'\x65':
                 aux65.append(_aux_bytes_65_to_list_ndc(i[0]))
-            elif i[0][rec_byte] == b'\x74':
+            elif i[0][7:8] == b'\x74':
                 aux74.append(_aux_bytes_74_to_list_ndc(i[0]))
 
     # Create DataFrames
@@ -368,15 +370,28 @@ def _read_ndc_11(mm):
     # Read data records
     aux = []
     mm.seek(header)
-    while mm.tell() < mm_size:
-        bytes = mm.read(record_len)
-        for i in struct.iter_unpack('<cfh', bytes[132:-2]):
-            if i[0] == b'\x65':
-                aux.append([i[1]/10000, i[2]/10])
 
-    # Create DataFrame
-    aux_df = pd.DataFrame(aux, columns=['V', 'T'])
-    aux_df['Index'] = aux_df.index + 1
+    if mm[header+132:header+133] == b'\x65':
+        while mm.tell() < mm_size:
+            bytes = mm.read(record_len)
+            for i in struct.iter_unpack('<cfh', bytes[132:-2]):
+                if i[0] == b'\x65':
+                    aux.append([i[1]/10000, i[2]/10])
+
+        # Create DataFrame
+        aux_df = pd.DataFrame(aux, columns=['V', 'T'])
+        aux_df['Index'] = aux_df.index + 1
+
+    elif mm[header+132:header+133] == b'\x74':
+        while mm.tell() < mm_size:
+            bytes = mm.read(record_len)
+            for i in struct.iter_unpack('<cib29sh51s', bytes[132:-4]):
+                if i[0] == b'\x74':
+                    aux.append([i[1], i[2], i[4]/10])
+
+        # Create DataFrame
+        aux_df = pd.DataFrame(aux, columns=['Index', 'Aux', 'T'])
+
     return None, aux_df
 
 
