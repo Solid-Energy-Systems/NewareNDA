@@ -4,7 +4,6 @@
 
 import mmap
 import struct
-import warnings
 import logging
 import tempfile
 import zipfile
@@ -55,7 +54,7 @@ def read_ndax(file, software_cycle_number=False, cycle_mode='chg'):
             with open(step, 'r', encoding='gb2312') as f:
                 config = ET.fromstring(f.read()).find('config')
             active_mass = float(config.find('Head_Info/SCQ').attrib['Value'])
-            logging.info(f"Active mass: {active_mass/1000} mg")
+            logger.info(f"Active mass: {active_mass/1000} mg")
         except Exception:
             pass
 
@@ -114,7 +113,7 @@ def _data_interpolation(df):
     nan_mask = df['Time'].notnull()
 
     if nan_mask.any():
-        warnings.warn("IMPORTANT: This ndax has missing data. The output from "
+        logger.warning("IMPORTANT: This ndax has missing data. The output from "
                       "NewareNDA contains interpolated data!")
 
     # Group by step and run 'inside' interpolation on Time
@@ -305,7 +304,7 @@ def _read_ndc_2(mm):
         elif bytes[rec_byte] == b'\x74':
             aux.append(_aux_bytes_74_to_list_ndc(bytes))
         else:
-            logger.warning("Unknown record type: "+bytes[rec_byte].hex())
+            logger.warning("Unknown record type: "+bytes[0:1].hex())
 
         header = mm.find(identifier, header - offset + record_len)
 

@@ -5,7 +5,6 @@
 import os
 import mmap
 import struct
-import warnings
 import logging
 from datetime import datetime, timezone
 import pandas as pd
@@ -41,9 +40,8 @@ def read(file, software_cycle_number=True, cycle_mode='chg', log_level='INFO'):
     if log_level in logging._nameToLevel.keys():
         logger.setLevel(log_level)
     else:
-        warnings.warn(f"Logging level '{log_level}' not supported; Defaulting to 'INFO'. "
-                      "Supported options are: {', '.join(logging._nameToLevel.keys())}")
-        logger.warn(f"Logging level '{log_level}' not supported; Defaulting to 'INFO'.")
+        logger.warning(f"Logging level '{log_level}' not supported; Defaulting to 'INFO'. "
+                    f"Supported options are: {', '.join(logging._nameToLevel.keys())}")
     
     # Identify file type and process accordingly
     _, ext = os.path.splitext(file)
@@ -135,15 +133,15 @@ def _read_nda_29(mm):
 
     # Get the active mass
     [active_mass] = struct.unpack('<I', mm[152:156])
-    logging.info(f"Active mass: {active_mass/1000} mg")
+    logger.info(f"Active mass: {active_mass/1000} mg")
 
     try:
         remarks = mm[2317:2417].decode('ASCII')
         # Clean null characters
         remarks = remarks.replace(chr(0), '').strip()
-        logging.info(f"Remarks: {remarks}")
+        logger.info(f"Remarks: {remarks}")
     except UnicodeDecodeError:
-        logging.warning(f"Converting remark bytes into ASCII failed")
+        logger.warning("Converting remark bytes into ASCII failed")
         remarks = ""
 
     # Identify the beginning of the data section
@@ -212,14 +210,14 @@ def _read_nda_130(mm):
 
         # Get the active mass
         [active_mass] = struct.unpack('<d', bytes[-8:])
-        logging.info(f"Active mass: {active_mass} mg")
+        logger.info(f"Active mass: {active_mass} mg")
 
         # Get the remarks
         remarks = bytes[363:491].decode('ASCII')
 
         # Clean null characters
         remarks = remarks.replace(chr(0), '').strip()
-        logging.info(f"Remarks: {remarks}")
+        logger.info(f"Remarks: {remarks}")
 
     return output, aux
 
@@ -388,7 +386,7 @@ def _id_first_state(df):
         _, cycle_mode = first_state.split('_', 1)
     except ValueError:
         # Status is SIM or otherwise. Set mode to chg
-        warnings.warn("First Step not recognized. Defaulting to Cycle_Mode 'Charge'.")
+        logger.warning("First Step not recognized. Defaulting to Cycle_Mode 'Charge'.")
         cycle_mode = 'chg'
 
     return cycle_mode.lower()
