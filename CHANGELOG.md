@@ -5,6 +5,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [v2024.07.01]
+### Added
+- Initial support for BTS 9.1 files.
+- Additional auxiliary fields read for ndc version 11.
+
+### Fixed
+- Incorrect range multiplier
+
+
 ## [v2024.06.03]
 ### Added
 - Active mass and comments are read and returned as a logging messages.
