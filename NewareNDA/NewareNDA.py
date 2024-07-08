@@ -14,7 +14,9 @@ from NewareNDA.dicts import rec_columns, aux_columns, dtype_dict, \
 from .NewareNDAx import read_ndax
 
 
-def read(file, software_cycle_number=True, cycle_mode='chg'):
+logger = logging.getLogger('newarenda')
+
+def read(file, software_cycle_number=True, cycle_mode='chg', log_level='INFO'):
     """
     Read electrochemical data from an Neware nda or ndax binary file.
 
@@ -26,15 +28,29 @@ def read(file, software_cycle_number=True, cycle_mode='chg'):
             'chg': (Default) Sets new cycles with a Charge step following a Discharge.
             'dchg': Sets new cycles with a Discharge step following a Charge.
             'auto': Identifies the first non-rest state as the incremental state.
+        log_level (str): Sets the modules logging level. Default: 'INFO'
+            Options: 'CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG', 'NOTSET'
     Returns:
         df (pd.DataFrame): DataFrame containing all records in the file
     """
+    
+    
+    # Set up logging
+    log_level = log_level.upper()
+    if log_level in logging._nameToLevel.keys():
+        logger.setLevel(log_level)
+    else:
+        logger.warning(f"Logging level '{log_level}' not supported; Defaulting to 'INFO'. "
+                    f"Supported options are: {', '.join(logging._nameToLevel.keys())}")
+    
+    # Identify file type and process accordingly
     _, ext = os.path.splitext(file)
     if ext == '.nda':
         return read_nda(file, software_cycle_number, cycle_mode)
     elif ext == '.ndax':
         return read_ndax(file, software_cycle_number, cycle_mode)
     else:
+        logger.error("File type not supported!")
         raise TypeError("File type not supported!")
 
 
@@ -57,23 +73,24 @@ def read_nda(file, software_cycle_number, cycle_mode='chg'):
         mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
 
         if mm.read(6) != b'NEWARE':
+            logger.error(f"{file} does not appear to be a Neware file.")
             raise ValueError(f"{file} does not appear to be a Neware file.")
 
         # Get the file version
         [nda_version] = struct.unpack('<B', mm[14:15])
-        logging.info(f"NDA version: {nda_version}")
+        logger.info(f"NDA version: {nda_version}")
 
         # Try to find server and client version info
         version_loc = mm.find(b'BTSServer')
         if version_loc != -1:
             mm.seek(version_loc)
             server = mm.read(50).strip(b'\x00').decode()
-            logging.info(f"Server: {server}")
+            logger.info(f"Server: {server}")
             mm.seek(50, 1)
             client = mm.read(50).strip(b'\x00').decode()
-            logging.info(f"Client: {client}")
+            logger.info(f"Client: {client}")
         else:
-            logging.info("BTS version not found!")
+            logger.info("BTS version not found!")
 
         # version specific settings
         if nda_version == 29:
@@ -81,7 +98,7 @@ def read_nda(file, software_cycle_number, cycle_mode='chg'):
         elif nda_version == 130:
             output, aux = _read_nda_130(mm)
         else:
-            logging.error(f"nda version {nda_version} is not yet supported!")
+            logger.error(f"nda version {nda_version} is not yet supported!")
             raise NotImplementedError(f"nda version {nda_version} is not yet supported!")
 
     # Create DataFrame and sort by Index
@@ -116,15 +133,15 @@ def _read_nda_29(mm):
 
     # Get the active mass
     [active_mass] = struct.unpack('<I', mm[152:156])
-    logging.info(f"Active mass: {active_mass/1000} mg")
+    logger.info(f"Active mass: {active_mass/1000} mg")
 
     try:
         remarks = mm[2317:2417].decode('ASCII')
         # Clean null characters
         remarks = remarks.replace(chr(0), '').strip()
-        logging.info(f"Remarks: {remarks}")
+        logger.info(f"Remarks: {remarks}")
     except UnicodeDecodeError:
-        logging.warning(f"Converting remark bytes into ASCII failed")
+        logger.warning("Converting remark bytes into ASCII failed")
         remarks = ""
 
     # Identify the beginning of the data section
@@ -132,6 +149,7 @@ def _read_nda_29(mm):
     identifier = b'\x00\x00\x00\x00\x55\x00'
     header = mm.find(identifier)
     if header == -1:
+        logger.error("File does not contain any valid records.")
         raise EOFError("File does not contain any valid records.")
     while (((mm[header + 4 + record_len] != 85)
             | (not _valid_record(mm[header+4:header+4+record_len])))
@@ -199,14 +217,14 @@ def _read_nda_130(mm):
 
         # Get the active mass
         [active_mass] = struct.unpack('<d', bytes[-8:])
-        logging.info(f"Active mass: {active_mass} mg")
+        logger.info(f"Active mass: {active_mass} mg")
 
         # Get the remarks
         remarks = bytes[363:491].decode('ASCII')
 
         # Clean null characters
         remarks = remarks.replace(chr(0), '').strip()
-        logging.info(f"Remarks: {remarks}")
+        logger.info(f"Remarks: {remarks}")
 
     return output, aux
 
@@ -344,6 +362,7 @@ def _generate_cycle_number(df, cycle_mode='chg'):
         inkey = 'DChg'
         offkey = 'Chg'
     else:
+        logger.error(f"Cycle_Mode '{cycle_mode}' not recognized. Supported options are 'chg', 'dchg', and 'auto'.")
         raise KeyError(f"Cycle_Mode '{cycle_mode}' not recognized. Supported options are 'chg', 'dchg', and 'auto'.")
 
     # Identify the beginning of key incremental steps
@@ -405,7 +424,7 @@ def _id_first_state(df):
         _, cycle_mode = first_state.split('_', 1)
     except ValueError:
         # Status is SIM or otherwise. Set mode to chg
-        logging.warning("First Step not recognized. Defaulting to Cycle_Mode 'Charge'.")
+        logger.warning("First Step not recognized. Defaulting to Cycle_Mode 'Charge'.")
         cycle_mode = 'chg'
 
     return cycle_mode.lower()
