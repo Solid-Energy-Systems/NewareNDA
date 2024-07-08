@@ -4,12 +4,11 @@
 
 [project]
 name = "NewareNDA"
-version = { attr = "NewareNDA.__version__" }
+dynamic = ["version"]
 license = { file = "LICENSE" }
-readme = { file = "README.md" }
+readme = { file = "README.md", content-type = "text/markdown" }
 authors = [{ name = "Daniel Cogswell", email = "danielcogswell@ses.ai" }]
 requires-python = ">=3.6"
-readme = "README.md"
 classifiers = [ "Programming Language :: Python :: 3" ]
 description = "Neware nda binary file reader."
 dependencies = [
