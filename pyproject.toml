@@ -1,0 +1,31 @@
+# © 2023 Copyright SES AI
+# Author: Daniel Cogswell
+# Email: danielcogswell@ses.ai
+
+[project]
+name = "NewareNDA"
+dynamic = ["version"]
+license = { file = "LICENSE" }
+readme = { file = "README.md", content-type = "text/markdown" }
+authors = [{ name = "Daniel Cogswell", email = "danielcogswell@ses.ai" }]
+requires-python = ">=3.6"
+classifiers = [ "Programming Language :: Python :: 3" ]
+description = "Neware nda binary file reader."
+dependencies = [
+  "pandas",
+  "importlib-metadata ~= 1.0 ; python_version < '3.8'"
+]
+
+[project.scripts]
+NewareNDA-cli = "NewareNDA.NewareNDAcli:main"
+
+[project.urls]
+homepage = "https://github.com/Solid-Energy-Systems/NewareNDA"
+tracker = "https://github.com/Solid-Energy-Systems/NewareNDA/issues"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project.optional-dependencies]
+test = ["pytest", "pyarrow", "coveralls"]
