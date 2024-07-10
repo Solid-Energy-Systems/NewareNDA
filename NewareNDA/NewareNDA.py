@@ -240,12 +240,10 @@ def _bytes_to_list(bytes):
     """Helper function for interpreting a byte string"""
 
     # Extract fields from byte string
-    [Index, Cycle] = struct.unpack('<II', bytes[2:10])
-    [Step] = struct.unpack('<I', bytes[10:14])
-    [Status, Jump, Time] = struct.unpack('<BBQ', bytes[12:22])
-    [Voltage, Current] = struct.unpack('<ii', bytes[22:30])
-    [Charge_capacity, Discharge_capacity] = struct.unpack('<qq', bytes[38:54])
-    [Charge_energy, Discharge_energy] = struct.unpack('<qq', bytes[54:70])
+    [Index, Cycle, Step] = struct.unpack('<III', bytes[2:14])
+    [Status, Jump, Time, Voltage, Current] = struct.unpack('<BBQii', bytes[12:30])
+    [Charge_capacity, Discharge_capacity,
+     Charge_energy, Discharge_energy] = struct.unpack('<qqqq', bytes[38:70])
     [Y, M, D, h, m, s] = struct.unpack('<HBBBBB', bytes[70:77])
     [Range] = struct.unpack('<i', bytes[78:82])
 
@@ -277,11 +275,10 @@ def _bytes_to_list_BTS9(bytes):
     """Helper function to interpret byte strings from BTS9"""
     [Step, Status] = struct.unpack('<BB', bytes[5:7])
     [Index] = struct.unpack('<I', bytes[12:16])
-    [Time] = struct.unpack('<Q', bytes[24:32])
-    [Voltage, Current] = struct.unpack('<ff', bytes[32:40])
-    [Charge_Capacity, Charge_Energy] = struct.unpack('<ff', bytes[48:56])
-    [Discharge_Capacity, Discharge_Energy] = struct.unpack('<ff', bytes[56:64])
-    [Date] = struct.unpack('<Q', bytes[64:72])
+    [Time, Voltage, Current] = struct.unpack('<Qff', bytes[24:40])
+    [Charge_Capacity, Charge_Energy,
+     Discharge_Capacity, Discharge_Energy,
+     Date] = struct.unpack('<ffffQ', bytes[48:72])
 
     # Create a dictionary for the record
     list = [
