@@ -19,6 +19,12 @@ dtype_dict = {
     'Discharge_Energy(mWh)': 'float32'
 }
 
+aux_dtype_dict = {
+    'V': 'float32',
+    'T': 'float32',
+    't': 'float32'
+}
+
 # Dictionary mapping Status integer to string
 state_dict = {
     1: 'CC_Chg',
