@@ -3,7 +3,6 @@ rec_columns = [
     'Index', 'Cycle', 'Step', 'Status', 'Time', 'Voltage',
     'Current(mA)', 'Charge_Capacity(mAh)', 'Discharge_Capacity(mAh)',
     'Charge_Energy(mWh)', 'Discharge_Energy(mWh)', 'Timestamp']
-aux_columns = ['Index', 'Aux', 'T', 'V']
 
 # Define precision of fields
 dtype_dict = {

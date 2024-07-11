@@ -9,8 +9,8 @@ import logging
 from datetime import datetime, timezone
 import pandas as pd
 
-from NewareNDA.dicts import rec_columns, aux_columns, dtype_dict, \
-    multiplier_dict, state_dict
+from NewareNDA.dicts import rec_columns, dtype_dict, state_dict, \
+    multiplier_dict
 from .NewareNDAx import read_ndax
 
 
@@ -94,7 +94,7 @@ def read_nda(file, software_cycle_number, cycle_mode='chg'):
     df.reset_index(drop=True, inplace=True)
 
     # Join temperature data
-    aux_df = pd.DataFrame(aux, columns=aux_columns)
+    aux_df = pd.DataFrame(aux, columns=['Index', 'Aux', 'T', 'V'])
     aux_df.drop_duplicates(inplace=True)
     if not aux_df.empty:
         pvt_df = aux_df.pivot(index='Index', columns='Aux')
