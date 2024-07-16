@@ -79,7 +79,8 @@ def read_ndax(file, software_cycle_number=False, cycle_mode='chg'):
                 columns=rec_columns)
 
             # Fill in missing data - Neware appears to fabricate data
-            _data_interpolation(data_df)
+            if data_df.isnull().any(axis=None):
+                _data_interpolation(data_df)
 
         else:
             data_df, _ = read_ndc(data_file)
@@ -109,12 +110,11 @@ def _data_interpolation(df):
     Some ndax from from BTS Server 8 do not seem to contain a complete dataset.
     This helper function fills in missing times, capacities, and energies.
     """
+    logger.warning("IMPORTANT: This ndax has missing data. The output from "
+                   "NewareNDA contains interpolated data!")
+
     # Identify the valid data
     nan_mask = df['Time'].notnull()
-
-    if nan_mask.any():
-        logger.warning("IMPORTANT: This ndax has missing data. The output from "
-                      "NewareNDA contains interpolated data!")
 
     # Group by step and run 'inside' interpolation on Time
     df['Time'] = df.groupby('Step')['Time'].transform(
