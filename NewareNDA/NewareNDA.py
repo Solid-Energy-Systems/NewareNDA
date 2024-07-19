@@ -199,6 +199,7 @@ def _read_nda_130(mm):
             # Check for a data record
             if bytes[0:1] == b'\x55':
                 output.append(_bytes_to_list_BTS91(bytes))
+                aux.append(_aux_bytes_to_list_BTS91(bytes))
             elif bytes[0:6] == identifier:
                 output.append(_bytes_to_list_BTS9(bytes[4:]))
 
@@ -336,6 +337,12 @@ def _aux_bytes_to_list(bytes):
     [T] = struct.unpack('<h', bytes[34:36])
 
     return [Index, Aux, T/10, V/10000]
+
+
+def _aux_bytes_to_list_BTS91(bytes):
+    [Index] = struct.unpack('<I', bytes[8:12])
+    [T] = struct.unpack('<f', bytes[52:56])
+    return [Index, 1, T, None]
 
 
 def _generate_cycle_number(df, cycle_mode='chg'):
