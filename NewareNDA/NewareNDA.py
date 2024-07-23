@@ -186,7 +186,8 @@ def _read_nda_130(mm):
     record_len = 88
     identifier = mm[1024:1030]
     if mm[1024:1025] == b'\x55':  # BTS 9.1
-        record_len = 56
+        # Find next record and get length
+        record_len = mm.find(b'\x55\x00', 1026) - 1024
     mm.seek(1024)
 
     # Read data records
@@ -199,6 +200,8 @@ def _read_nda_130(mm):
             # Check for a data record
             if bytes[0:1] == b'\x55':
                 output.append(_bytes_to_list_BTS91(bytes))
+                if record_len == 56:
+                    aux.append(_aux_bytes_to_list_BTS91(bytes))
             elif bytes[0:6] == identifier:
                 output.append(_bytes_to_list_BTS9(bytes[4:]))
 
@@ -336,6 +339,12 @@ def _aux_bytes_to_list(bytes):
     [T] = struct.unpack('<h', bytes[34:36])
 
     return [Index, Aux, T/10, V/10000]
+
+
+def _aux_bytes_to_list_BTS91(bytes):
+    [Index] = struct.unpack('<I', bytes[8:12])
+    [T] = struct.unpack('<f', bytes[52:56])
+    return [Index, 1, T, None]
 
 
 def _generate_cycle_number(df, cycle_mode='chg'):
