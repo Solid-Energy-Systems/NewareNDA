@@ -187,7 +187,7 @@ def _read_nda_130(mm):
     identifier = mm[1024:1030]
     if mm[1024:1025] == b'\x55':  # BTS 9.1
         # Find next record and get length
-        record_len = mm.find(b'\x55\x00', 1026) - 1024
+        record_len = mm.find(mm[1024:1026], 1026) - 1024
     mm.seek(1024)
 
     # Read data records
