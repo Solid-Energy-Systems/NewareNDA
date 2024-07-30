@@ -8,6 +8,7 @@ from logging import _nameToLevel
 import pandas as pd
 import NewareNDA
 
+
 def main():
     output_cmd = {
         'csv': lambda df, f: pd.DataFrame.to_csv(df, f, index=False),
@@ -37,6 +38,7 @@ def main():
 
     df = NewareNDA.read(args.in_file, args.software_cycle_number, cycle_mode=args.cycle_mode, log_level=args.log_level)
     output_cmd[args.format](df, args.out_file)
+
 
 if __name__ == '__main__':
     main()

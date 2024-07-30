@@ -16,8 +16,8 @@ import NewareNDA.NewareNDA
 from NewareNDA.dicts import rec_columns, dtype_dict, state_dict, \
      multiplier_dict
 
-
 logger = logging.getLogger('newarenda')
+
 
 def read_ndax(file, software_cycle_number=False, cycle_mode='chg'):
     """
@@ -310,7 +310,6 @@ def _read_ndc_2(mm):
             logger.warning("Unknown record type: "+bytes[0:1].hex())
 
         header = mm.find(identifier, header + record_len)
-
 
     # Create DataFrame and sort by Index
     df = pd.DataFrame(output, columns=rec_columns)

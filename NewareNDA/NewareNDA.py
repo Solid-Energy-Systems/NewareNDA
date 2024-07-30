@@ -13,8 +13,8 @@ from NewareNDA.dicts import rec_columns, aux_columns, dtype_dict, \
     multiplier_dict, state_dict
 from .NewareNDAx import read_ndax
 
-
 logger = logging.getLogger('newarenda')
+
 
 def read(file, software_cycle_number=True, cycle_mode='chg', log_level='INFO'):
     """
@@ -33,16 +33,15 @@ def read(file, software_cycle_number=True, cycle_mode='chg', log_level='INFO'):
     Returns:
         df (pd.DataFrame): DataFrame containing all records in the file
     """
-    
-    
+
     # Set up logging
     log_level = log_level.upper()
     if log_level in logging._nameToLevel.keys():
         logger.setLevel(log_level)
     else:
         logger.warning(f"Logging level '{log_level}' not supported; Defaulting to 'INFO'. "
-                    f"Supported options are: {', '.join(logging._nameToLevel.keys())}")
-    
+                       f"Supported options are: {', '.join(logging._nameToLevel.keys())}")
+
     # Identify file type and process accordingly
     _, ext = os.path.splitext(file)
     if ext == '.nda':
@@ -372,7 +371,7 @@ def _generate_cycle_number(df, cycle_mode='chg'):
         raise KeyError(f"Cycle_Mode '{cycle_mode}' not recognized. Supported options are 'chg', 'dchg', and 'auto'.")
 
     # Identify the beginning of key incremental steps
-    inc = (df['Status'] == 'CCCV_'+inkey) | (df['Status'] == 'CC_'+inkey) |  (df['Status'] == 'CP_'+inkey)
+    inc = (df['Status'] == 'CCCV_'+inkey) | (df['Status'] == 'CC_'+inkey) | (df['Status'] == 'CP_'+inkey)
 
     # inc series = 1 at new incremental step, 0 otherwise
     inc = (inc - inc.shift()).clip(0)
