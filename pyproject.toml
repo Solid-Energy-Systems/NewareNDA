@@ -1,4 +1,4 @@
-# © 2023 Copyright SES AI
+# © 2022-2024 Copyright SES AI
 # Author: Daniel Cogswell
 # Email: danielcogswell@ses.ai
 
