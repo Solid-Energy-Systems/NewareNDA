@@ -1,4 +1,4 @@
-# © 2023 Copyright SES AI
+# © 2022-2024 Copyright SES AI
 # Author: Daniel Cogswell
 # Email: danielcogswell@ses.ai
 
@@ -15,6 +15,8 @@ import pandas as pd
 import NewareNDA.NewareNDA
 from NewareNDA.dicts import rec_columns, dtype_dict, state_dict, \
      multiplier_dict
+
+logger = logging.getLogger('newarenda')
 
 
 def read_ndax(file, software_cycle_number=False, cycle_mode='chg'):
@@ -39,10 +41,10 @@ def read_ndax(file, software_cycle_number=False, cycle_mode='chg'):
             version_info = zf.extract('VersionInfo.xml', path=tmpdir)
             with open(version_info, 'r', encoding='gb2312') as f:
                 config = ET.fromstring(f.read()).find('config/ZwjVersion')
-            logging.info(f"Server version: {config.attrib['SvrVer']}")
-            logging.info(f"Client version: {config.attrib['CurrClientVer']}")
-            logging.info(f"Control unit version: {config.attrib['ZwjVersion']}")
-            logging.info(f"Tester version: {config.attrib['MainXwjVer']}")
+            logger.info(f"Server version: {config.attrib['SvrVer']}")
+            logger.info(f"Client version: {config.attrib['CurrClientVer']}")
+            logger.info(f"Control unit version: {config.attrib['ZwjVersion']}")
+            logger.info(f"Tester version: {config.attrib['MainXwjVer']}")
         except Exception:
             pass
 
@@ -52,7 +54,7 @@ def read_ndax(file, software_cycle_number=False, cycle_mode='chg'):
             with open(step, 'r', encoding='gb2312') as f:
                 config = ET.fromstring(f.read()).find('config')
             active_mass = float(config.find('Head_Info/SCQ').attrib['Value'])
-            logging.info(f"Active mass: {active_mass/1000} mg")
+            logger.info(f"Active mass: {active_mass/1000} mg")
         except Exception:
             pass
 
@@ -77,7 +79,8 @@ def read_ndax(file, software_cycle_number=False, cycle_mode='chg'):
                 columns=rec_columns)
 
             # Fill in missing data - Neware appears to fabricate data
-            _data_interpolation(data_df)
+            if data_df.isnull().any(axis=None):
+                _data_interpolation(data_df)
 
         else:
             data_df, _ = read_ndc(data_file)
@@ -107,12 +110,11 @@ def _data_interpolation(df):
     Some ndax from from BTS Server 8 do not seem to contain a complete dataset.
     This helper function fills in missing times, capacities, and energies.
     """
+    logger.warning("IMPORTANT: This ndax has missing data. The output from "
+                   "NewareNDA contains interpolated data!")
+
     # Identify the valid data
     nan_mask = df['Time'].notnull()
-
-    if nan_mask.any():
-        logging.warning("IMPORTANT: This ndax has missing data. The output "
-                        "from NewareNDA contains interpolated data!")
 
     # Group by step and run 'inside' interpolation on Time
     df['Time'] = df.groupby('Step')['Time'].transform(
@@ -274,7 +276,7 @@ def read_ndc(file):
 
         # Get ndc file version
         [ndc_version] = struct.unpack('<B', mm[2:3])
-        logging.info(f"NDC version: {ndc_version}")
+        logger.info(f"NDC version: {ndc_version}")
 
         if ndc_version == 2:
             return _read_ndc_2(mm)
@@ -305,7 +307,7 @@ def _read_ndc_2(mm):
         elif bytes[0:1] == b'\x74':
             aux.append(_aux_bytes_74_to_list_ndc(bytes))
         else:
-            logging.warning("Unknown record type: "+bytes[0:1].hex())
+            logger.warning("Unknown record type: "+bytes[0:1].hex())
 
         header = mm.find(identifier, header + record_len)
 

@@ -3,7 +3,7 @@
 [![Coverage Status](https://coveralls.io/repos/github/Solid-Energy-Systems/NewareNDA/badge.svg?branch=development)](https://coveralls.io/github/Solid-Energy-Systems/NewareNDA?branch=development)
 # NewareNDA
 
-© 2024 Copyright SES AI
+© 2022-2024 Copyright SES AI
 <br>Author: Daniel Cogswell
 <br>Email: danielcogswell@ses.ai
 
@@ -33,9 +33,33 @@ df = NewareNDA.read('filename.nda')
 ```
 ## Command-line interface:
 ```
-NewareNDA-cli.py in_file.nda --format feather out_file.ftr
+usage: NewareNDA-cli [-h]
+                     [-f {csv,excel,feather,hdf,json,parquet,pickle,stata}]
+                     [-s] [-v]
+                     [-l {CRITICAL,FATAL,ERROR,WARN,WARNING,INFO,DEBUG,NOTSET}]
+                     [-c {chg,dchg,auto}]
+                     in_file out_file
+
+Script for converting Neware NDA files to other file formats. The default
+output format is csv. Other formats may require installing additional
+packages.
+
+positional arguments:
+  in_file               input file
+  out_file              output file
+
+options:
+  -h, --help            show this help message and exit
+  -f {csv,excel,feather,hdf,json,parquet,pickle,stata}, --format {csv,excel,feather,hdf,json,parquet,pickle,stata}
+  -s, --software_cycle_number
+                        Generate the cycle number field to match old versions
+                        of BTSDA.
+  -v, --version         show version
+  -l {CRITICAL,FATAL,ERROR,WARN,WARNING,INFO,DEBUG,NOTSET}, --log_level {CRITICAL,FATAL,ERROR,WARN,WARNING,INFO,DEBUG,NOTSET}
+                        Set the logging level for NewareNDA
+  -c {chg,dchg,auto}, --cycle_mode {chg,dchg,auto}
+                        Selects how the cycle is incremented.
 ```
-The following `--format` options are supported: `csv, excel, feather, hdf, json, parquet, pickle, stata`
 
 # Troubleshooting
 If you encounter a key error, it is often the case that your file has a hardware setting that we have not seen before. Usually it is a quick fix that requires comparing output from BTSDA with values extracted by NewareNDA. Please start a new Github Issue and we will help debug.
