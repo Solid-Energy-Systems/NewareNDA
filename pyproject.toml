@@ -16,6 +16,9 @@ dependencies = [
   "importlib-metadata ~= 1.0 ; python_version < '3.8'"
 ]
 
+[tool.setuptools.dynamic]
+version = { attr = "NewareNDA.version.__version__" }
+
 [project.scripts]
 NewareNDA-cli = "NewareNDA.NewareNDAcli:main"
 
