@@ -83,7 +83,7 @@ def read_ndax(file, software_cycle_number=False, cycle_mode='chg'):
                 _data_interpolation(data_df)
 
         else:
-            data_df, _ = read_ndc(data_file)
+            data_df = read_ndc(data_file)
 
         # Read and merge Aux data from ndc files
         aux_df = pd.DataFrame([])
@@ -91,7 +91,7 @@ def read_ndax(file, software_cycle_number=False, cycle_mode='chg'):
             m = re.search(".*_([0-9]+)[.]ndc", f)
             if m:
                 aux_file = zf.extract(f, path=tmpdir)
-                _, aux = read_ndc(aux_file)
+                aux = read_ndc(aux_file)
                 aux['Aux'] = int(m[1])
                 aux_df = pd.concat([aux_df, aux], ignore_index=True)
         if not aux_df.empty:
@@ -279,31 +279,47 @@ def read_ndc(file):
         [ndc_version] = struct.unpack('<B', mm[2:3])
         logger.info(f"NDC version: {ndc_version} filetype: {ndc_filetype}")
 
-        if ndc_version == 2:
-            return _read_ndc_2(mm)
-        elif ndc_version == 5:
-            return _read_ndc_5(mm)
-        elif ndc_version == 11:
-            return _read_ndc_11(mm)
-        else:
-            raise NotImplementedError(f"ndc version {ndc_version} is not yet supported!")
+        try:
+            f = getattr(NewareNDA.NewareNDAx, f"_read_ndc_{ndc_version}_filetype_{ndc_filetype}")
+            return f(mm)
+        except AttributeError:
+            raise NotImplementedError(f"ndc version {ndc_version} filetype {ndc_filetype} is not yet supported!")
 
 
-def _read_ndc_2(mm):
-    """Helper function that reads records and aux data from ndc version 2"""
+def _read_ndc_2_filetype_1(mm):
     record_len = 94
     identifier = mm[517:525]
 
     # Read data records
     output = []
-    aux = []
     header = mm.find(identifier)
     while header != -1:
         mm.seek(header)
         bytes = mm.read(record_len)
         if bytes[0:1] == b'\x55':
             output.append(_bytes_to_list_ndc(bytes))
-        elif bytes[0:1] == b'\x65':
+        else:
+            logger.warning("Unknown record type: "+bytes[0:1].hex())
+
+        header = mm.find(identifier, header + record_len)
+
+    # Postprocessing
+    df = pd.DataFrame(output, columns=rec_columns)
+
+    return df
+
+
+def _read_ndc_2_filetype_5(mm):
+    record_len = 94
+    identifier = mm[517:525]
+
+    # Read aux records
+    aux = []
+    header = mm.find(identifier)
+    while header != -1:
+        mm.seek(header)
+        bytes = mm.read(record_len)
+        if bytes[0:1] == b'\x65':
             aux.append(_aux_bytes_65_to_list_ndc(bytes))
         elif bytes[0:1] == b'\x74':
             aux.append(_aux_bytes_74_to_list_ndc(bytes))
@@ -312,43 +328,52 @@ def _read_ndc_2(mm):
 
         header = mm.find(identifier, header + record_len)
 
-    # Create DataFrame and sort by Index
-    df = pd.DataFrame(output, columns=rec_columns)
-
     # Postprocessing
     aux_df = pd.DataFrame([])
-    df = df.astype(dtype=dtype_dict)
     if identifier[0:1] == b'\x65':
         aux_df = pd.DataFrame(aux, columns=['Index', 'Aux', 'V', 'T'])
     elif identifier[0:1] == b'\x74':
         aux_df = pd.DataFrame(aux, columns=['Index', 'Aux', 'V', 'T', 't'])
 
-    return df, aux_df
+    return aux_df
 
 
-def _read_ndc_5(mm):
-    """Helper function that reads records and aux data from ndc version 5"""
+def _read_ndc_5_filetype_1(mm):
     mm_size = mm.size()
     record_len = 4096
     header = 4096
 
     # Read data records
     output = []
-    aux65 = []
-    aux74 = []
     mm.seek(header)
     while mm.tell() < mm_size:
         bytes = mm.read(record_len)
         for i in struct.iter_unpack('<87s', bytes[125:-56]):
             if i[0][7:8] == b'\x55':
                 output.append(_bytes_to_list_ndc(i[0]))
-            elif i[0][7:8] == b'\x65':
+
+    # Postprocessing
+    df = pd.DataFrame(output, columns=rec_columns)
+
+    return df
+
+
+def _read_ndc_5_filetype_5(mm):
+    mm_size = mm.size()
+    record_len = 4096
+    header = 4096
+
+    # Read aux records
+    aux65 = []
+    aux74 = []
+    mm.seek(header)
+    while mm.tell() < mm_size:
+        bytes = mm.read(record_len)
+        for i in struct.iter_unpack('<87s', bytes[125:-56]):
+            if i[0][7:8] == b'\x65':
                 aux65.append(_aux_bytes_65_to_list_ndc(i[0]))
             elif i[0][7:8] == b'\x74':
                 aux74.append(_aux_bytes_74_to_list_ndc(i[0]))
-
-    # Create DataFrames
-    df = pd.DataFrame(output, columns=rec_columns)
 
     # Concat aux65 and aux74 if they both contain data
     aux_df = pd.DataFrame(aux65, columns=['Index', 'Aux', 'V', 'T'])
@@ -358,11 +383,10 @@ def _read_ndc_5(mm):
     elif (not aux74_df.empty):
         aux_df = aux74_df
 
-    return df, aux_df
+    return aux_df
 
 
-def _read_ndc_11(mm):
-    """Helper function that reads aux data from ndc version 11"""
+def _read_ndc_11_filetype_5(mm):
     mm_size = mm.size()
     record_len = 4096
     header = 4096
@@ -392,7 +416,7 @@ def _read_ndc_11(mm):
         # Create DataFrame
         aux_df = pd.DataFrame(aux, columns=['Index', 'Aux', 'T'])
 
-    return None, aux_df
+    return aux_df
 
 
 def _bytes_to_list_ndc(bytes):
