@@ -281,7 +281,7 @@ def read_ndc(file):
 
         if ndc_version == 2:
             return _read_ndc_2(mm)
-        if ndc_version == 5:
+        elif ndc_version == 5:
             return _read_ndc_5(mm)
         elif ndc_version == 11:
             return _read_ndc_11(mm)
@@ -342,7 +342,7 @@ def _read_ndc_5(mm):
         for i in struct.iter_unpack('<87s', bytes[125:-56]):
             if i[0][7:8] == b'\x55':
                 output.append(_bytes_to_list_ndc(i[0]))
-            if i[0][7:8] == b'\x65':
+            elif i[0][7:8] == b'\x65':
                 aux65.append(_aux_bytes_65_to_list_ndc(i[0]))
             elif i[0][7:8] == b'\x74':
                 aux74.append(_aux_bytes_74_to_list_ndc(i[0]))
