@@ -274,9 +274,10 @@ def read_ndc(file):
     with open(file, 'rb') as f:
         mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
 
-        # Get ndc file version
+        # Get ndc file version and filetype
+        [ndc_filetype] = struct.unpack('<B', mm[0:1])
         [ndc_version] = struct.unpack('<B', mm[2:3])
-        logger.info(f"NDC version: {ndc_version}")
+        logger.info(f"NDC version: {ndc_version} filetype: {ndc_filetype}")
 
         if ndc_version == 2:
             return _read_ndc_2(mm)
