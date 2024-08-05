@@ -68,9 +68,9 @@ def read_ndax(file, software_cycle_number=False, cycle_mode='chg'):
             # Read data from separate files
             runInfo_file = zf.extract('data_runInfo.ndc', path=tmpdir)
             step_file = zf.extract('data_step.ndc', path=tmpdir)
-            data_df = _read_data_ndc(data_file)
-            runInfo_df = _read_data_runInfo_ndc(runInfo_file)
-            step_df = _read_data_step_ndc(step_file)
+            data_df = read_ndc(data_file)
+            runInfo_df = read_ndc(runInfo_file)
+            step_df = read_ndc(step_file)
 
             # Merge dataframes
             data_df = data_df.merge(runInfo_df, how='left', on='Index')
@@ -151,114 +151,6 @@ def _data_interpolation(df):
         inc.where(df['Current(mA)'] < 0, 0).shift()
     df['Charge_Energy(mWh)'] = df['Charge_Energy(mWh)'].where(nan_mask, chg)
     df['Discharge_Energy(mWh)'] = df['Discharge_Energy(mWh)'].where(nan_mask, dch)
-
-
-def _read_data_ndc(file):
-    with open(file, 'rb') as f:
-        mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
-        mm_size = mm.size()
-
-        # Choose multipliers based on ndc file version
-        [ndc_version] = struct.unpack('<B', mm[2:3])
-        if ndc_version == 11:
-            multipliers = [1e-4, 1]
-        elif ndc_version == 14:
-            multipliers = [1, 1000]
-        else:
-            raise NotImplementedError(f"ndc version {ndc_version} is not yet supported!")
-
-        # Identify the beginning of the data section
-        record_len = 4096
-        header = 4096
-
-        # Read data records
-        rec = []
-        mm.seek(header)
-        while mm.tell() < mm_size:
-            bytes = mm.read(record_len)
-            for i in struct.iter_unpack('<ff', bytes[132:-4]):
-                if (i[0] != 0):
-                    rec.append([i[0], i[1]])
-
-    # Create DataFrame
-    df = multipliers*pd.DataFrame(rec, columns=['Voltage', 'Current(mA)'])
-    df['Index'] = df.index + 1
-    return df
-
-
-def _read_data_runInfo_ndc(file):
-    with open(file, 'rb') as f:
-        mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
-        mm_size = mm.size()
-
-        # Choose byte format based on ndc file version
-        [ndc_version] = struct.unpack('<B', mm[2:3])
-        if ndc_version == 11:
-            format = '<isffff12siii2s'
-            multipliers = [1e-3, 1/3600, 1/3600, 1/3600, 1/3600]
-            end_byte = -63
-        elif ndc_version == 14:
-            format = '<isffff12siii10s'
-            end_byte = -59
-            multipliers = [1e-3, 1000, 1000, 1000, 1000]
-        else:
-            raise NotImplementedError(f"ndc version {ndc_version} is not yet supported!")
-
-        # Identify the beginning of the data section
-        record_len = 4096
-        header = 4096
-
-        # Read data records
-        rec = []
-        mm.seek(header)
-        while mm.tell() < mm_size:
-            bytes = mm.read(record_len)
-            for i in struct.iter_unpack(format, bytes[132:end_byte]):
-                Time = i[0]
-                [Charge_Capacity, Discharge_Capacity] = [i[2], i[3]]
-                [Charge_Energy, Discharge_Energy] = [i[4], i[5]]
-                [Timestamp, Step, Index] = [i[7], i[8], i[9]]
-                if Index != 0:
-                    rec.append([Time,
-                                Charge_Capacity, Discharge_Capacity,
-                                Charge_Energy, Discharge_Energy,
-                                datetime.fromtimestamp(Timestamp, timezone.utc).astimezone(), Step, Index])
-
-    # Create DataFrame
-    df = pd.DataFrame(rec, columns=[
-        'Time',
-        'Charge_Capacity(mAh)', 'Discharge_Capacity(mAh)',
-        'Charge_Energy(mWh)', 'Discharge_Energy(mWh)',
-        'Timestamp', 'Step', 'Index']).astype({'Time': 'float'})
-    df.iloc[:, 0:5] *= multipliers
-    df['Step'] = NewareNDA.NewareNDA._count_changes(df['Step'])
-
-    return df
-
-
-def _read_data_step_ndc(file):
-    with open(file, 'rb') as f:
-        mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
-        mm_size = mm.size()
-
-        # Identify the beginning of the data section
-        record_len = 4096
-        header = 4096
-
-        # Read data records
-        rec = []
-        mm.seek(header)
-        while mm.tell() < mm_size:
-            bytes = mm.read(record_len)
-            for i in struct.iter_unpack('<ii16sb12s', bytes[132:-5]):
-                [Cycle, Step_Index, Status] = [i[0], i[1], i[3]]
-                if Step_Index != 0:
-                    rec.append([Cycle+1, Step_Index, state_dict[Status]])
-
-    # Create DataFrame
-    df = pd.DataFrame(rec, columns=['Cycle', 'Step_Index', 'Status'])
-    df['Step'] = df.index + 1
-    return df
 
 
 def read_ndc(file):
@@ -386,6 +278,26 @@ def _read_ndc_5_filetype_5(mm):
     return aux_df
 
 
+def _read_ndc_11_filetype_1(mm):
+    mm_size = mm.size()
+    record_len = 4096
+    header = 4096
+
+    # Read data records
+    rec = []
+    mm.seek(header)
+    while mm.tell() < mm_size:
+        bytes = mm.read(record_len)
+        for i in struct.iter_unpack('<ff', bytes[132:-4]):
+            if (i[0] != 0):
+                rec.append([1e-4*i[0], i[1]])
+
+    # Create DataFrame
+    df = pd.DataFrame(rec, columns=['Voltage', 'Current(mA)'])
+    df['Index'] = df.index + 1
+    return df
+
+
 def _read_ndc_11_filetype_5(mm):
     mm_size = mm.size()
     record_len = 4096
@@ -417,6 +329,115 @@ def _read_ndc_11_filetype_5(mm):
         aux_df = pd.DataFrame(aux, columns=['Index', 'Aux', 'T'])
 
     return aux_df
+
+
+def _read_ndc_11_filetype_7(mm):
+    mm_size = mm.size()
+    record_len = 4096
+    header = 4096
+
+    # Read data records
+    rec = []
+    mm.seek(header)
+    while mm.tell() < mm_size:
+        bytes = mm.read(record_len)
+        for i in struct.iter_unpack('<ii16sb12s', bytes[132:-5]):
+            [Cycle, Step_Index, Status] = [i[0], i[1], i[3]]
+            if Step_Index != 0:
+                rec.append([Cycle+1, Step_Index, state_dict[Status]])
+
+    # Create DataFrame
+    df = pd.DataFrame(rec, columns=['Cycle', 'Step_Index', 'Status'])
+    df['Step'] = df.index + 1
+    return df
+
+
+def _read_ndc_11_filetype_18(mm):
+    mm_size = mm.size()
+    record_len = 4096
+    header = 4096
+
+    # Read data records
+    rec = []
+    mm.seek(header)
+    while mm.tell() < mm_size:
+        bytes = mm.read(record_len)
+        for i in struct.iter_unpack('<isffff12siii2s', bytes[132:-63]):
+            Time = i[0]
+            [Charge_Capacity, Discharge_Capacity] = [i[2], i[3]]
+            [Charge_Energy, Discharge_Energy] = [i[4], i[5]]
+            [Timestamp, Step, Index] = [i[7], i[8], i[9]]
+            if Index != 0:
+                rec.append([Time/1000,
+                            Charge_Capacity/3600, Discharge_Capacity/3600,
+                            Charge_Energy/3600, Discharge_Energy/3600,
+                            datetime.fromtimestamp(Timestamp, timezone.utc).astimezone(), Step, Index])
+
+    # Create DataFrame
+    df = pd.DataFrame(rec, columns=[
+        'Time',
+        'Charge_Capacity(mAh)', 'Discharge_Capacity(mAh)',
+        'Charge_Energy(mWh)', 'Discharge_Energy(mWh)',
+        'Timestamp', 'Step', 'Index']).astype({'Time': 'float'})
+    df['Step'] = NewareNDA.NewareNDA._count_changes(df['Step'])
+
+    return df
+
+
+def _read_ndc_14_filetype_1(mm):
+    mm_size = mm.size()
+    record_len = 4096
+    header = 4096
+
+    # Read data records
+    rec = []
+    mm.seek(header)
+    while mm.tell() < mm_size:
+        bytes = mm.read(record_len)
+        for i in struct.iter_unpack('<ff', bytes[132:-4]):
+            if (i[0] != 0):
+                rec.append([i[0], 1000*i[1]])
+
+    # Create DataFrame
+    df = pd.DataFrame(rec, columns=['Voltage', 'Current(mA)'])
+    df['Index'] = df.index + 1
+    return df
+
+
+def _read_ndc_14_filetype_7(mm):
+    return _read_ndc_11_filetype_7(mm)
+
+
+def _read_ndc_14_filetype_18(mm):
+    mm_size = mm.size()
+    record_len = 4096
+    header = 4096
+
+    # Read data records
+    rec = []
+    mm.seek(header)
+    while mm.tell() < mm_size:
+        bytes = mm.read(record_len)
+        for i in struct.iter_unpack('<isffff12siii10s', bytes[132:-59]):
+            Time = i[0]
+            [Charge_Capacity, Discharge_Capacity] = [i[2], i[3]]
+            [Charge_Energy, Discharge_Energy] = [i[4], i[5]]
+            [Timestamp, Step, Index] = [i[7], i[8], i[9]]
+            if Index != 0:
+                rec.append([Time/1000,
+                            Charge_Capacity*1000, Discharge_Capacity*1000,
+                            Charge_Energy*1000, Discharge_Energy*1000,
+                            datetime.fromtimestamp(Timestamp, timezone.utc).astimezone(), Step, Index])
+
+    # Create DataFrame
+    df = pd.DataFrame(rec, columns=[
+        'Time',
+        'Charge_Capacity(mAh)', 'Discharge_Capacity(mAh)',
+        'Charge_Energy(mWh)', 'Discharge_Energy(mWh)',
+        'Timestamp', 'Step', 'Index']).astype({'Time': 'float'})
+    df['Step'] = NewareNDA.NewareNDA._count_changes(df['Step'])
+
+    return df
 
 
 def _bytes_to_list_ndc(bytes):
