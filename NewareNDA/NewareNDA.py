@@ -303,9 +303,9 @@ def _bytes_to_list_BTS9(bytes):
 def _bytes_to_list_BTS91(bytes):
     """Helper function to interpret byte strings from BTS9.1"""
     [Step, Status] = struct.unpack('<BB', bytes[2:4])
-    [Index, Time] = struct.unpack('<II', bytes[8:16])
+    [Index, Time, Time_ns] = struct.unpack('<III', bytes[8:20])
     [Current, Voltage, Capacity, Energy] = struct.unpack('<ffff', bytes[20:36])
-    [Date] = struct.unpack('<I', bytes[44:48])
+    [Date, Date_ns] = struct.unpack('<II', bytes[44:52])
 
     # Convert capacity and energy to charge and discharge fields
     Charge_Capacity = 0 if Capacity < 0 else Capacity
@@ -319,14 +319,14 @@ def _bytes_to_list_BTS91(bytes):
         0,
         Step,
         state_dict[Status],
-        Time,
+        Time + 1e-9*Time_ns,
         Voltage,
         Current,
         Charge_Capacity/3600,
         Discharge_Capacity/3600,
         Charge_Energy/3600,
         Discharge_Energy/3600,
-        datetime.fromtimestamp(Date, timezone.utc).astimezone()
+        datetime.fromtimestamp(Date + 1e-9*Date_ns, timezone.utc).astimezone()
     ]
     return list
 
