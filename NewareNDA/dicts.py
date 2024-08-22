@@ -3,7 +3,6 @@ rec_columns = [
     'Index', 'Cycle', 'Step', 'Status', 'Time', 'Voltage',
     'Current(mA)', 'Charge_Capacity(mAh)', 'Discharge_Capacity(mAh)',
     'Charge_Energy(mWh)', 'Discharge_Energy(mWh)', 'Timestamp']
-aux_columns = ['Index', 'Aux', 'T', 'V']
 
 # Define precision of fields
 dtype_dict = {
@@ -18,6 +17,12 @@ dtype_dict = {
     'Discharge_Capacity(mAh)': 'float32',
     'Charge_Energy(mWh)': 'float32',
     'Discharge_Energy(mWh)': 'float32'
+}
+
+aux_dtype_dict = {
+    'V': 'float32',
+    'T': 'float32',
+    't': 'float32'
 }
 
 # Dictionary mapping Status integer to string
