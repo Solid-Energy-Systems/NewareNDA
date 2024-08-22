@@ -10,9 +10,9 @@
 Python module and command line tool for reading and converting Neware nda and ndax battery cycling files. Auxiliary temperature fields are currently supported in both formats.
 
 # Installation
-To install from the PyPi package repository:
+To install the latest version from the PyPi package repository:
 ```
-pip install NewareNDA
+pip install --upgrade NewareNDA
 ```
 
 To install the development branch directly from Github:
@@ -31,6 +31,14 @@ pip install .
 import NewareNDA
 df = NewareNDA.read('filename.nda')
 ```
+
+## Logging
+Additional test information including active mass, remarks, and BTS versions is returned via [logging](https://docs.python.org/3/library/logging.html). The following command will print this logging information to the terminal:
+```
+import logging
+logging.basicConfig()
+```
+
 ## Command-line interface:
 ```
 usage: NewareNDA-cli [-h]
