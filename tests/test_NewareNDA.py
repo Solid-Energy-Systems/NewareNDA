@@ -3,8 +3,8 @@ import NewareNDA
 from datetime import datetime
 
 
-def test_NDA(nda_file, ref_file):
-    df = NewareNDA.read(nda_file)
+def test_NDA(nda_file, ref_file, software_cycle_number, cycle_mode):
+    df = NewareNDA.read(nda_file, software_cycle_number, cycle_mode)
     ref_df = pd.read_feather(ref_file)
 
     # Convert dates to timestamps for comparison
