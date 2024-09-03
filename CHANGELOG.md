@@ -5,6 +5,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [v2024.09.03]
+### Added
+- dtype specifications for auxiliary data.
+- Addtional current range multipliers.
+- Regression tests for software_cycle_number and cycle_mode keywords.
+
+### Fixed
+- Millisecond timing now read from BTS 9.1 files.
+
+### Changed
+- Refactored NewareNDAx.py to explicitly treat ndc files based on version and filetype.
+
+
 ## [v2024.08.01]
 ### Added
 - Read aux temperature data from BTS 9.1 files.
