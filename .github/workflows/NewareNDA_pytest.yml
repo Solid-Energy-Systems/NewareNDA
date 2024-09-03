@@ -25,6 +25,8 @@ jobs:
       - name: Test with pytest
         run: |
           coverage run -m pytest tests
+          coverage run -m pytest --cycle_mode=dchg --refDir=tests/reference_cycle_mode_dchg tests
+          coverage run -m pytest --cycle_mode=auto --refDir=tests/reference_cycle_mode_auto tests
 
       - name: Coveralls
         uses: coverallsapp/github-action@v2
