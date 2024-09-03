@@ -9,8 +9,8 @@ import logging
 from datetime import datetime, timezone
 import pandas as pd
 
-from NewareNDA.dicts import rec_columns, aux_columns, dtype_dict, \
-    multiplier_dict, state_dict
+from NewareNDA.dicts import rec_columns, dtype_dict, aux_dtype_dict, \
+    state_dict, multiplier_dict
 from .NewareNDAx import read_ndax
 
 logger = logging.getLogger('newarenda')
@@ -110,9 +110,11 @@ def read_nda(file, software_cycle_number, cycle_mode='chg'):
     df.reset_index(drop=True, inplace=True)
 
     # Join temperature data
-    aux_df = pd.DataFrame(aux, columns=aux_columns)
+    aux_df = pd.DataFrame(aux, columns=['Index', 'Aux', 'T', 'V'])
     aux_df.drop_duplicates(inplace=True)
     if not aux_df.empty:
+        aux_df = aux_df.astype(
+            {k: aux_dtype_dict[k] for k in aux_dtype_dict.keys() & aux_df.columns})
         pvt_df = aux_df.pivot(index='Index', columns='Aux')
         pvt_df.columns = pvt_df.columns.map(lambda x: ''.join(map(str, x)))
         df = df.join(pvt_df, on='Index')
@@ -303,9 +305,9 @@ def _bytes_to_list_BTS9(bytes):
 def _bytes_to_list_BTS91(bytes):
     """Helper function to interpret byte strings from BTS9.1"""
     [Step, Status] = struct.unpack('<BB', bytes[2:4])
-    [Index, Time] = struct.unpack('<II', bytes[8:16])
+    [Index, Time, Time_ns] = struct.unpack('<III', bytes[8:20])
     [Current, Voltage, Capacity, Energy] = struct.unpack('<ffff', bytes[20:36])
-    [Date] = struct.unpack('<I', bytes[44:48])
+    [Date, Date_ns] = struct.unpack('<II', bytes[44:52])
 
     # Convert capacity and energy to charge and discharge fields
     Charge_Capacity = 0 if Capacity < 0 else Capacity
@@ -319,14 +321,14 @@ def _bytes_to_list_BTS91(bytes):
         0,
         Step,
         state_dict[Status],
-        Time,
+        Time + 1e-9*Time_ns,
         Voltage,
         Current,
         Charge_Capacity/3600,
         Discharge_Capacity/3600,
         Charge_Energy/3600,
         Discharge_Energy/3600,
-        datetime.fromtimestamp(Date, timezone.utc).astimezone()
+        datetime.fromtimestamp(Date + 1e-9*Date_ns, timezone.utc).astimezone()
     ]
     return list
 
