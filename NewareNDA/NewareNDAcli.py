@@ -26,7 +26,7 @@ def main():
     parser.add_argument('out_file', help='output file')
     parser.add_argument('-f', '--format', default='csv',
                         choices=output_cmd.keys())
-    parser.add_argument('-s', '--software_cycle_number', action='store_true',
+    parser.add_argument('-s', '--no_software_cycle_number', action='store_false',
                         help='Generate the cycle number field to match old versions of BTSDA.')
     parser.add_argument('-v', '--version', help='show version',
                         action='version', version=NewareNDA.__version__)
@@ -36,7 +36,7 @@ def main():
                         help='Selects how the cycle is incremented.')
     args = parser.parse_args()
 
-    df = NewareNDA.read(args.in_file, args.software_cycle_number, cycle_mode=args.cycle_mode, log_level=args.log_level)
+    df = NewareNDA.read(args.in_file, args.no_software_cycle_number, cycle_mode=args.cycle_mode, log_level=args.log_level)
     output_cmd[args.format](df, args.out_file)
 
 
