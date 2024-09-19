@@ -58,7 +58,12 @@ def read_ndax(file, software_cycle_number=False, cycle_mode='chg'):
         except Exception:
             pass
 
-        data_file = zf.extract('data.ndc', path=tmpdir)
+        # Try to read data.ndc
+        if 'data.ndc' in zf.namelist():
+            data_file = zf.extract('data.ndc', path=tmpdir)
+            data_df = read_ndc(data_file)
+        else:
+            raise NotImplementedError("File type not yet supported!")
 
         # Some ndax have data spread across 3 different ndc files. Others have
         # all data in data.ndc.
@@ -68,7 +73,6 @@ def read_ndax(file, software_cycle_number=False, cycle_mode='chg'):
             # Read data from separate files
             runInfo_file = zf.extract('data_runInfo.ndc', path=tmpdir)
             step_file = zf.extract('data_step.ndc', path=tmpdir)
-            data_df = read_ndc(data_file)
             runInfo_df = read_ndc(runInfo_file)
             step_df = read_ndc(step_file)
 
@@ -81,9 +85,6 @@ def read_ndax(file, software_cycle_number=False, cycle_mode='chg'):
             # Fill in missing data - Neware appears to fabricate data
             if data_df.isnull().any(axis=None):
                 _data_interpolation(data_df)
-
-        else:
-            data_df = read_ndc(data_file)
 
         # Read and merge Aux data from ndc files
         aux_df = pd.DataFrame([])
