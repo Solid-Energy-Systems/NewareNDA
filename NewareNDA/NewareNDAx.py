@@ -2,6 +2,7 @@
 # Author: Daniel Cogswell
 # Email: danielcogswell@ses.ai
 
+import sys
 import mmap
 import struct
 import logging
@@ -12,9 +13,9 @@ from datetime import datetime, timezone
 import xml.etree.ElementTree as ET
 import pandas as pd
 
-import NewareNDA.NewareNDA
-from NewareNDA.dicts import rec_columns, dtype_dict, aux_dtype_dict, \
-      state_dict, multiplier_dict
+from .utils import _generate_cycle_number, _count_changes
+from .dicts import rec_columns, dtype_dict, aux_dtype_dict, state_dict, \
+    multiplier_dict
 
 logger = logging.getLogger('newarenda')
 
@@ -102,7 +103,7 @@ def read_ndax(file, software_cycle_number=False, cycle_mode='chg'):
             data_df = data_df.join(pvt_df, on='Index')
 
     if software_cycle_number:
-        data_df['Cycle'] = NewareNDA.NewareNDA._generate_cycle_number(data_df, cycle_mode)
+        data_df['Cycle'] = _generate_cycle_number(data_df, cycle_mode)
 
     return data_df.astype(dtype=dtype_dict)
 
@@ -174,7 +175,7 @@ def read_ndc(file):
         logger.debug(f"NDC version: {ndc_version} filetype: {ndc_filetype}")
 
         try:
-            f = getattr(NewareNDA.NewareNDAx, f"_read_ndc_{ndc_version}_filetype_{ndc_filetype}")
+            f = getattr(sys.modules[__name__], f"_read_ndc_{ndc_version}_filetype_{ndc_filetype}")
             return f(mm)
         except AttributeError:
             raise NotImplementedError(f"ndc version {ndc_version} filetype {ndc_filetype} is not yet supported!")
@@ -381,7 +382,7 @@ def _read_ndc_11_filetype_18(mm):
         'Charge_Capacity(mAh)', 'Discharge_Capacity(mAh)',
         'Charge_Energy(mWh)', 'Discharge_Energy(mWh)',
         'Timestamp', 'Step', 'Index']).astype({'Time': 'float'})
-    df['Step'] = NewareNDA.NewareNDA._count_changes(df['Step'])
+    df['Step'] = _count_changes(df['Step'])
 
     return df
 
@@ -437,7 +438,7 @@ def _read_ndc_14_filetype_18(mm):
         'Charge_Capacity(mAh)', 'Discharge_Capacity(mAh)',
         'Charge_Energy(mWh)', 'Discharge_Energy(mWh)',
         'Timestamp', 'Step', 'Index']).astype({'Time': 'float'})
-    df['Step'] = NewareNDA.NewareNDA._count_changes(df['Step'])
+    df['Step'] = _count_changes(df['Step'])
 
     return df
 
