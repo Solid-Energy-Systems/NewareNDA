@@ -20,7 +20,7 @@ def test_NewareNDAcli(nda_file, ref_file, software_cycle_number, cycle_mode):
     with tempfile.TemporaryDirectory() as tmpdir:
         filename = os.path.join(tmpdir, os.path.basename(nda_file))
         os.system(
-            f"python -m NewareNDA.NewareNDAcli --format=feather "
+            f"python -m NewareNDA --format=feather "
             f"{'' if software_cycle_number else '--no_software_cycle_number'} "
             f"--cycle_mode={cycle_mode} "
             f"{nda_file} {filename}.ftr")

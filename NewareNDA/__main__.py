@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 '''
 Script for converting Neware NDA files to other file formats. The default
 output format is csv. Other formats may require installing additional packages.
