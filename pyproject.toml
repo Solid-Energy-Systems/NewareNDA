@@ -20,7 +20,7 @@ dependencies = [
 version = { attr = "NewareNDA.version.__version__" }
 
 [project.scripts]
-NewareNDA-cli = "NewareNDA.NewareNDAcli:main"
+NewareNDA-cli = "NewareNDA.__main__:main"
 
 [project.urls]
 homepage = "https://github.com/Solid-Energy-Systems/NewareNDA"
