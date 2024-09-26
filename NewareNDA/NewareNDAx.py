@@ -448,13 +448,10 @@ def _bytes_to_list_ndc(bytes):
     """Helper function for interpreting an ndc byte string"""
 
     # Extract fields from byte string
-    [Index, Cycle] = struct.unpack('<II', bytes[8:16])
-    [Step] = struct.unpack('<B', bytes[16:17])
-    [Status] = struct.unpack('<B', bytes[17:18])
-    [Time] = struct.unpack('<Q', bytes[23:31])
-    [Voltage, Current] = struct.unpack('<ii', bytes[31:39])
-    [Charge_capacity, Discharge_capacity] = struct.unpack('<qq', bytes[43:59])
-    [Charge_energy, Discharge_energy] = struct.unpack('<qq', bytes[59:75])
+    [Index, Cycle, Step, Status] = struct.unpack('<IIBB', bytes[8:18])
+    [Time, Voltage, Current] = struct.unpack('<Qii', bytes[23:39])
+    [Charge_capacity, Discharge_capacity,
+     Charge_energy, Discharge_energy] = struct.unpack('<qqqq', bytes[43:75])
     [Y, M, D, h, m, s] = struct.unpack('<HBBBBB', bytes[75:82])
     [Range] = struct.unpack('<i', bytes[82:86])
 
