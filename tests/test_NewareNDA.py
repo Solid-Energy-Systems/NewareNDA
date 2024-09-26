@@ -23,7 +23,7 @@ def test_NewareNDAcli(nda_file, ref_file, software_cycle_number, cycle_mode):
             f"python -m NewareNDA --format=feather "
             f"{'' if software_cycle_number else '--no_software_cycle_number'} "
             f"--cycle_mode={cycle_mode} "
-            f"{nda_file} {filename}.ftr")
+            f"\"{nda_file}\" \"{filename}.ftr\"")
         df = pd.read_feather(f"{filename}.ftr")
     ref_df = pd.read_feather(ref_file)
 
