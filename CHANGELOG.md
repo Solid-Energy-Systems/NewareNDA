@@ -5,6 +5,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [v2024.10.01]
+### Added
+- Added regression tests for NewareNDAcli
+
+### Changed
+- Changed the NewareNDAcli flag from --software_cycle_number to --no_software_cycle_number
+
+
 ## [v2024.09.03]
 ### Added
 - dtype specifications for auxiliary data.
