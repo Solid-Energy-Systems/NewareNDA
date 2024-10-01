@@ -2,6 +2,7 @@
 # Author: Daniel Cogswell
 # Email: danielcogswell@ses.ai
 
+import sys
 import mmap
 import struct
 import logging
@@ -12,9 +13,9 @@ from datetime import datetime, timezone
 import xml.etree.ElementTree as ET
 import pandas as pd
 
-import NewareNDA.NewareNDA
-from NewareNDA.dicts import rec_columns, dtype_dict, aux_dtype_dict, \
-      state_dict, multiplier_dict
+from .utils import _generate_cycle_number, _count_changes
+from .dicts import rec_columns, dtype_dict, aux_dtype_dict, state_dict, \
+    multiplier_dict
 
 logger = logging.getLogger('newarenda')
 
@@ -58,7 +59,12 @@ def read_ndax(file, software_cycle_number=False, cycle_mode='chg'):
         except Exception:
             pass
 
-        data_file = zf.extract('data.ndc', path=tmpdir)
+        # Try to read data.ndc
+        if 'data.ndc' in zf.namelist():
+            data_file = zf.extract('data.ndc', path=tmpdir)
+            data_df = read_ndc(data_file)
+        else:
+            raise NotImplementedError("File type not yet supported!")
 
         # Some ndax have data spread across 3 different ndc files. Others have
         # all data in data.ndc.
@@ -68,7 +74,6 @@ def read_ndax(file, software_cycle_number=False, cycle_mode='chg'):
             # Read data from separate files
             runInfo_file = zf.extract('data_runInfo.ndc', path=tmpdir)
             step_file = zf.extract('data_step.ndc', path=tmpdir)
-            data_df = read_ndc(data_file)
             runInfo_df = read_ndc(runInfo_file)
             step_df = read_ndc(step_file)
 
@@ -81,9 +86,6 @@ def read_ndax(file, software_cycle_number=False, cycle_mode='chg'):
             # Fill in missing data - Neware appears to fabricate data
             if data_df.isnull().any(axis=None):
                 _data_interpolation(data_df)
-
-        else:
-            data_df = read_ndc(data_file)
 
         # Read and merge Aux data from ndc files
         aux_df = pd.DataFrame([])
@@ -102,7 +104,7 @@ def read_ndax(file, software_cycle_number=False, cycle_mode='chg'):
             data_df = data_df.join(pvt_df, on='Index')
 
     if software_cycle_number:
-        data_df['Cycle'] = NewareNDA.NewareNDA._generate_cycle_number(data_df, cycle_mode)
+        data_df['Cycle'] = _generate_cycle_number(data_df, cycle_mode)
 
     return data_df.astype(dtype=dtype_dict)
 
@@ -174,7 +176,7 @@ def read_ndc(file):
         logger.debug(f"NDC version: {ndc_version} filetype: {ndc_filetype}")
 
         try:
-            f = getattr(NewareNDA.NewareNDAx, f"_read_ndc_{ndc_version}_filetype_{ndc_filetype}")
+            f = getattr(sys.modules[__name__], f"_read_ndc_{ndc_version}_filetype_{ndc_filetype}")
             return f(mm)
         except AttributeError:
             raise NotImplementedError(f"ndc version {ndc_version} filetype {ndc_filetype} is not yet supported!")
@@ -381,7 +383,7 @@ def _read_ndc_11_filetype_18(mm):
         'Charge_Capacity(mAh)', 'Discharge_Capacity(mAh)',
         'Charge_Energy(mWh)', 'Discharge_Energy(mWh)',
         'Timestamp', 'Step', 'Index']).astype({'Time': 'float'})
-    df['Step'] = NewareNDA.NewareNDA._count_changes(df['Step'])
+    df['Step'] = _count_changes(df['Step'])
 
     return df
 
@@ -437,7 +439,7 @@ def _read_ndc_14_filetype_18(mm):
         'Charge_Capacity(mAh)', 'Discharge_Capacity(mAh)',
         'Charge_Energy(mWh)', 'Discharge_Energy(mWh)',
         'Timestamp', 'Step', 'Index']).astype({'Time': 'float'})
-    df['Step'] = NewareNDA.NewareNDA._count_changes(df['Step'])
+    df['Step'] = _count_changes(df['Step'])
 
     return df
 
@@ -446,13 +448,10 @@ def _bytes_to_list_ndc(bytes):
     """Helper function for interpreting an ndc byte string"""
 
     # Extract fields from byte string
-    [Index, Cycle] = struct.unpack('<II', bytes[8:16])
-    [Step] = struct.unpack('<B', bytes[16:17])
-    [Status] = struct.unpack('<B', bytes[17:18])
-    [Time] = struct.unpack('<Q', bytes[23:31])
-    [Voltage, Current] = struct.unpack('<ii', bytes[31:39])
-    [Charge_capacity, Discharge_capacity] = struct.unpack('<qq', bytes[43:59])
-    [Charge_energy, Discharge_energy] = struct.unpack('<qq', bytes[59:75])
+    [Index, Cycle, Step, Status] = struct.unpack('<IIBB', bytes[8:18])
+    [Time, Voltage, Current] = struct.unpack('<Qii', bytes[23:39])
+    [Charge_capacity, Discharge_capacity,
+     Charge_energy, Discharge_energy] = struct.unpack('<qqqq', bytes[43:75])
     [Y, M, D, h, m, s] = struct.unpack('<HBBBBB', bytes[75:82])
     [Range] = struct.unpack('<i', bytes[82:86])
 
