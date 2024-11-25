@@ -59,6 +59,19 @@ def read_ndax(file, software_cycle_number=False, cycle_mode='chg'):
         except Exception:
             pass
 
+        # Read aux channel mapping from TestInfo.xml
+        aux_ch_dict = {}
+        try:
+            step = zf.extract('TestInfo.xml', path=tmpdir)
+            with open(step, 'r', encoding='gb2312') as f:
+                config = ET.fromstring(f.read()).find('config')
+
+            for child in config.find("TestInfo"):
+                aux_ch_dict.update({int(child.attrib['RealChlID']): int(child.attrib['AuxID'])})
+
+        except Exception:
+            pass
+
         # Try to read data.ndc
         if 'data.ndc' in zf.namelist():
             data_file = zf.extract('data.ndc', path=tmpdir)
@@ -90,11 +103,21 @@ def read_ndax(file, software_cycle_number=False, cycle_mode='chg'):
         # Read and merge Aux data from ndc files
         aux_df = pd.DataFrame([])
         for f in zf.namelist():
-            m = re.search(".*_([0-9]+)[.]ndc", f)
+
+            # If the filename contains a channel number, convert to aux_id
+            m = re.search("data_AUX_([0-9]+)_[0-9]+_[0-9]+[.]ndc", f)
+            if m:
+                ch = int(m[1])
+                aux_id = aux_ch_dict[ch]
+            else:
+                m = re.search(".*_([0-9]+)[.]ndc", f)
+                if m:
+                    aux_id = int(m[1])
+
             if m:
                 aux_file = zf.extract(f, path=tmpdir)
                 aux = read_ndc(aux_file)
-                aux['Aux'] = int(m[1])
+                aux['Aux'] = aux_id
                 aux_df = pd.concat([aux_df, aux], ignore_index=True)
         if not aux_df.empty:
             aux_df = aux_df.astype(
@@ -406,6 +429,25 @@ def _read_ndc_14_filetype_1(mm):
     df = pd.DataFrame(rec, columns=['Voltage', 'Current(mA)'])
     df['Index'] = df.index + 1
     return df
+
+
+def _read_ndc_14_filetype_5(mm):
+    record_len = 4096
+    header = 4096
+
+    # Read data records
+    aux = []
+    mm.seek(header)
+    while mm.tell() < mm.size():
+        bytes = mm.read(record_len)
+        for i in struct.iter_unpack('<f', bytes[132:-4]):
+            aux.append(i[0])
+
+    # Create DataFrame
+    aux_df = pd.DataFrame(aux, columns=['T'])
+    aux_df['Index'] = aux_df.index + 1
+
+    return aux_df
 
 
 def _read_ndc_14_filetype_7(mm):
