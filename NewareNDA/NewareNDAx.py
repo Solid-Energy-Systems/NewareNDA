@@ -398,7 +398,7 @@ def _read_ndc_11_filetype_18(mm):
                 rec.append([Time/1000,
                             Charge_Capacity/3600, Discharge_Capacity/3600,
                             Charge_Energy/3600, Discharge_Energy/3600,
-                            datetime.fromtimestamp(Timestamp, timezone.utc).astimezone(), Step, Index])
+                            datetime.fromtimestamp(Timestamp, timezone.utc), Step, Index])
 
     # Create DataFrame
     df = pd.DataFrame(rec, columns=[
@@ -407,6 +407,10 @@ def _read_ndc_11_filetype_18(mm):
         'Charge_Energy(mWh)', 'Discharge_Energy(mWh)',
         'Timestamp', 'Step', 'Index']).astype({'Time': 'float'})
     df['Step'] = _count_changes(df['Step'])
+
+    # Convert timestamp to local timezone
+    tz = datetime.now().astimezone().tzinfo
+    df['Timestamp'] = df['Timestamp'].dt.tz_convert(tz)
 
     return df
 
@@ -473,7 +477,7 @@ def _read_ndc_14_filetype_18(mm):
                 rec.append([Time/1000,
                             Charge_Capacity*1000, Discharge_Capacity*1000,
                             Charge_Energy*1000, Discharge_Energy*1000,
-                            datetime.fromtimestamp(Timestamp, timezone.utc).astimezone(), Step, Index])
+                            datetime.fromtimestamp(Timestamp, timezone.utc), Step, Index])
 
     # Create DataFrame
     df = pd.DataFrame(rec, columns=[
@@ -482,6 +486,10 @@ def _read_ndc_14_filetype_18(mm):
         'Charge_Energy(mWh)', 'Discharge_Energy(mWh)',
         'Timestamp', 'Step', 'Index']).astype({'Time': 'float'})
     df['Step'] = _count_changes(df['Step'])
+
+    # Convert timestamp to local timezone
+    tz = datetime.now().astimezone().tzinfo
+    df['Timestamp'] = df['Timestamp'].dt.tz_convert(tz)
 
     return df
 
