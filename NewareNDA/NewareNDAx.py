@@ -497,7 +497,13 @@ def _bytes_to_list_ndc(bytes):
     [Y, M, D, h, m, s] = struct.unpack('<HBBBBB', bytes[75:82])
     [Range] = struct.unpack('<i', bytes[82:86])
 
-    multiplier = multiplier_dict[Range]
+    try:
+        multiplier = multiplier_dict[Range]
+    except KeyError:
+        multiplier = float('nan')
+        if Current != 0:
+            raise KeyError(f"Missing range multiplier {Range}. Using BTSDA, get the current at index {Index} and divide by {Current}.")
+        pass
 
     # Create a record
     list = [

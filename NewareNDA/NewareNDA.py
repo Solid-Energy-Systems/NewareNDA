@@ -256,7 +256,13 @@ def _bytes_to_list(bytes):
     if Index == 0 or Status == 0:
         return []
 
-    multiplier = multiplier_dict[Range]
+    try:
+        multiplier = multiplier_dict[Range]
+    except KeyError:
+        multiplier = float('nan')
+        if Current != 0:
+            raise KeyError(f"Missing range multiplier {Range}. Using BTSDA, get the current at index {Index} and divide by {Current}.")
+        pass
 
     # Create a dictionary for the record
     list = [
