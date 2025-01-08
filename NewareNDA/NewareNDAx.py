@@ -36,6 +36,7 @@ def read_ndax(file, software_cycle_number=False, cycle_mode='chg'):
     """
     with tempfile.TemporaryDirectory() as tmpdir:
         zf = zipfile.PyZipFile(file)
+        filelist = zf.namelist()
 
         # Read version information
         try:
@@ -59,18 +60,31 @@ def read_ndax(file, software_cycle_number=False, cycle_mode='chg'):
         except Exception:
             pass
 
-        # Read aux channel mapping from TestInfo.xml
+        # Read aux channel mapping and test information from
+        # TestInfo.xml
+        # TODO: if test is edited while running then there are
+        # TestInfo{1,2,3,..}.xml files. Aux mapping and start time are
+        # the same but the Barcode and SN might have changed, so we
+        # should perhaps read newest TestInfo.xml file.
         aux_ch_dict = {}
-        try:
+        if 'TestInfo.xml' in filelist:
             step = zf.extract('TestInfo.xml', path=tmpdir)
             with open(step, 'r', encoding='gb2312') as f:
                 config = ET.fromstring(f.read()).find('config')
 
-            for child in config.find("TestInfo"):
-                aux_ch_dict.update({int(child.attrib['RealChlID']): int(child.attrib['AuxID'])})
+            if 'Barcode' in config.find("TestInfo").attrib:
+                logger.info(f"Test barcode: {config.find('TestInfo').attrib['Barcode']}")
 
-        except Exception:
-            pass
+            if 'SN' in config.find("TestInfo").attrib:
+                logger.info(f"Test P/N: {config.find('TestInfo').attrib['SN']}")
+
+            start_time = datetime.strptime(config.find('TestInfo').attrib['StartTime'], '%Y-%m-%d %H:%M:%S')
+            logger.info(f"Test start time: {start_time}")
+
+            num_of_aux = int(config.find("TestInfo").attrib["AuxCount"])
+            for num in range(1, num_of_aux+1):
+                aux = config.find(f"TestInfo/Aux{num}")
+                aux_ch_dict.update({int(aux.attrib['RealChlID']): int(aux.attrib['AuxID'])})
 
         # Try to read data.ndc
         if 'data.ndc' in zf.namelist():
