@@ -92,7 +92,7 @@ def read_ndax(file, software_cycle_number=False, cycle_mode='chg'):
                 aux_ch_dict.update({int(aux.attrib['RealChlID']): int(aux.attrib['AuxID'])})
 
         # Try to read data.ndc
-        if 'data.ndc' in zf.namelist():
+        if 'data.ndc' in filelist:
             data_file = zf.extract('data.ndc', path=tmpdir)
             data_df = read_ndc(data_file)
         else:
@@ -101,7 +101,7 @@ def read_ndax(file, software_cycle_number=False, cycle_mode='chg'):
         # Some ndax have data spread across 3 different ndc files. Others have
         # all data in data.ndc.
         # Check if data_runInfo.ndc and data_step.ndc exist
-        if all(i in zf.namelist() for i in ['data_runInfo.ndc', 'data_step.ndc']):
+        if all(i in filelist for i in ['data_runInfo.ndc', 'data_step.ndc']):
 
             # Read data from separate files
             runInfo_file = zf.extract('data_runInfo.ndc', path=tmpdir)
@@ -121,7 +121,7 @@ def read_ndax(file, software_cycle_number=False, cycle_mode='chg'):
 
         # Read and merge Aux data from ndc files
         aux_df = pd.DataFrame([])
-        for f in zf.namelist():
+        for f in filelist:
 
             # If the filename contains a channel number, convert to aux_id
             m = re.search("data_AUX_([0-9]+)_[0-9]+_[0-9]+[.]ndc", f)
