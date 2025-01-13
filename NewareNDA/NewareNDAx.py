@@ -87,320 +87,6 @@ def _data_interpolation(df):
     df['Discharge_Energy(mWh)'] = df['Discharge_Energy(mWh)'].where(nan_mask, dch)
 
 
-def read_ndc(file):
-    """
-    Function to read electrochemical data from a Neware ndc binary file.
-
-    Args:
-        file (str): Name of an .ndc file to read
-    Returns:
-        df (pd.DataFrame): DataFrame containing all records in the file
-        aux_df (pd.DataFrame): DataFrame containing any temperature data
-    """
-    with open(file, 'rb') as f:
-        mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
-
-        # Get ndc file version and filetype
-        [ndc_filetype] = struct.unpack('<B', mm[0:1])
-        [ndc_version] = struct.unpack('<B', mm[2:3])
-        logger.debug(f"NDC version: {ndc_version} filetype: {ndc_filetype}")
-
-        try:
-            f = getattr(sys.modules[__name__], f"_read_ndc_{ndc_version}_filetype_{ndc_filetype}")
-            return f(mm)
-        except AttributeError:
-            raise NotImplementedError(f"ndc version {ndc_version} filetype {ndc_filetype} is not yet supported!")
-
-
-def _read_ndc_2_filetype_1(mm):
-    record_len = 94
-    identifier = mm[517:525]
-
-    # Read data records
-    output = []
-    header = mm.find(identifier)
-    while header != -1:
-        mm.seek(header)
-        bytes = mm.read(record_len)
-        if bytes[0:1] == b'\x55':
-            output.append(_bytes_to_list_ndc(bytes))
-        else:
-            logger.warning("Unknown record type: "+bytes[0:1].hex())
-
-        header = mm.find(identifier, header + record_len)
-
-    # Postprocessing
-    df = pd.DataFrame(output, columns=rec_columns)
-
-    return df
-
-
-def _read_ndc_2_filetype_5(mm):
-    record_len = 94
-    identifier = mm[517:525]
-
-    # Read aux records
-    aux = []
-    header = mm.find(identifier)
-    while header != -1:
-        mm.seek(header)
-        bytes = mm.read(record_len)
-        if bytes[0:1] == b'\x65':
-            aux.append(_aux_bytes_65_to_list_ndc(bytes))
-        elif bytes[0:1] == b'\x74':
-            aux.append(_aux_bytes_74_to_list_ndc(bytes))
-        else:
-            logger.warning("Unknown record type: "+bytes[0:1].hex())
-
-        header = mm.find(identifier, header + record_len)
-
-    # Postprocessing
-    aux_df = pd.DataFrame([])
-    if identifier[0:1] == b'\x65':
-        aux_df = pd.DataFrame(aux, columns=['Index', 'Aux', 'V', 'T'])
-    elif identifier[0:1] == b'\x74':
-        aux_df = pd.DataFrame(aux, columns=['Index', 'Aux', 'V', 'T', 't'])
-
-    return aux_df
-
-
-def _read_ndc_5_filetype_1(mm):
-    mm_size = mm.size()
-    record_len = 4096
-    header = 4096
-
-    # Read data records
-    output = []
-    mm.seek(header)
-    while mm.tell() < mm_size:
-        bytes = mm.read(record_len)
-        for i in struct.iter_unpack('<87s', bytes[125:-56]):
-            if i[0][7:8] == b'\x55':
-                output.append(_bytes_to_list_ndc(i[0]))
-
-    # Postprocessing
-    df = pd.DataFrame(output, columns=rec_columns)
-
-    return df
-
-
-def _read_ndc_5_filetype_5(mm):
-    mm_size = mm.size()
-    record_len = 4096
-    header = 4096
-
-    # Read aux records
-    aux65 = []
-    aux74 = []
-    mm.seek(header)
-    while mm.tell() < mm_size:
-        bytes = mm.read(record_len)
-        for i in struct.iter_unpack('<87s', bytes[125:-56]):
-            if i[0][7:8] == b'\x65':
-                aux65.append(_aux_bytes_65_to_list_ndc(i[0]))
-            elif i[0][7:8] == b'\x74':
-                aux74.append(_aux_bytes_74_to_list_ndc(i[0]))
-
-    # Concat aux65 and aux74 if they both contain data
-    aux_df = pd.DataFrame(aux65, columns=['Index', 'Aux', 'V', 'T'])
-    aux74_df = pd.DataFrame(aux74, columns=['Index', 'Aux', 'V', 'T', 't'])
-    if (not aux_df.empty) & (not aux74_df.empty):
-        aux_df = pd.concat([aux_df, aux74_df.drop(columns=['t'])])
-    elif (not aux74_df.empty):
-        aux_df = aux74_df
-
-    return aux_df
-
-
-def _read_ndc_11_filetype_1(mm):
-    mm_size = mm.size()
-    record_len = 4096
-    header = 4096
-
-    # Read data records
-    rec = []
-    mm.seek(header)
-    while mm.tell() < mm_size:
-        bytes = mm.read(record_len)
-        for i in struct.iter_unpack('<ff', bytes[132:-4]):
-            if (i[0] != 0):
-                rec.append([1e-4*i[0], i[1]])
-
-    # Create DataFrame
-    df = pd.DataFrame(rec, columns=['Voltage', 'Current(mA)'])
-    df['Index'] = df.index + 1
-    return df
-
-
-def _read_ndc_11_filetype_5(mm):
-    mm_size = mm.size()
-    record_len = 4096
-    header = 4096
-
-    # Read data records
-    aux = []
-    mm.seek(header)
-
-    if mm[header+132:header+133] == b'\x65':
-        while mm.tell() < mm_size:
-            bytes = mm.read(record_len)
-            for i in struct.iter_unpack('<cfh', bytes[132:-2]):
-                if i[0] == b'\x65':
-                    aux.append([i[1]/10000, i[2]/10])
-
-        # Create DataFrame
-        aux_df = pd.DataFrame(aux, columns=['V', 'T'])
-        aux_df['Index'] = aux_df.index + 1
-
-    elif mm[header+132:header+133] == b'\x74':
-        while mm.tell() < mm_size:
-            bytes = mm.read(record_len)
-            for i in struct.iter_unpack('<cib29sh51s', bytes[132:-4]):
-                if i[0] == b'\x74':
-                    aux.append([i[1], i[2], i[4]/10])
-
-        # Create DataFrame
-        aux_df = pd.DataFrame(aux, columns=['Index', 'Aux', 'T'])
-
-    return aux_df
-
-
-def _read_ndc_11_filetype_7(mm):
-    mm_size = mm.size()
-    record_len = 4096
-    header = 4096
-
-    # Read data records
-    rec = []
-    mm.seek(header)
-    while mm.tell() < mm_size:
-        bytes = mm.read(record_len)
-        for i in struct.iter_unpack('<ii16sb12s', bytes[132:-5]):
-            [Cycle, Step_Index, Status] = [i[0], i[1], i[3]]
-            if Step_Index != 0:
-                rec.append([Cycle+1, Step_Index, state_dict[Status]])
-
-    # Create DataFrame
-    df = pd.DataFrame(rec, columns=['Cycle', 'Step_Index', 'Status'])
-    df['Step'] = df.index + 1
-    return df
-
-
-def _read_ndc_11_filetype_18(mm):
-    mm_size = mm.size()
-    record_len = 4096
-    header = 4096
-
-    # Read data records
-    rec = []
-    mm.seek(header)
-    while mm.tell() < mm_size:
-        bytes = mm.read(record_len)
-        for i in struct.iter_unpack('<isffff12siii2s', bytes[132:-63]):
-            Time = i[0]
-            [Charge_Capacity, Discharge_Capacity] = [i[2], i[3]]
-            [Charge_Energy, Discharge_Energy] = [i[4], i[5]]
-            [Timestamp, Step, Index] = [i[7], i[8], i[9]]
-            if Index != 0:
-                rec.append([Time/1000,
-                            Charge_Capacity/3600, Discharge_Capacity/3600,
-                            Charge_Energy/3600, Discharge_Energy/3600,
-                            datetime.fromtimestamp(Timestamp, timezone.utc), Step, Index])
-
-    # Create DataFrame
-    df = pd.DataFrame(rec, columns=[
-        'Time',
-        'Charge_Capacity(mAh)', 'Discharge_Capacity(mAh)',
-        'Charge_Energy(mWh)', 'Discharge_Energy(mWh)',
-        'Timestamp', 'Step', 'Index']).astype({'Time': 'float'})
-    df['Step'] = _count_changes(df['Step'])
-
-    # Convert timestamp to local timezone
-    tz = datetime.now().astimezone().tzinfo
-    df['Timestamp'] = df['Timestamp'].dt.tz_convert(tz)
-
-    return df
-
-
-def _read_ndc_14_filetype_1(mm):
-    mm_size = mm.size()
-    record_len = 4096
-    header = 4096
-
-    # Read data records
-    rec = []
-    mm.seek(header)
-    while mm.tell() < mm_size:
-        bytes = mm.read(record_len)
-        for i in struct.iter_unpack('<ff', bytes[132:-4]):
-            if (i[0] != 0):
-                rec.append([i[0], 1000*i[1]])
-
-    # Create DataFrame
-    df = pd.DataFrame(rec, columns=['Voltage', 'Current(mA)'])
-    df['Index'] = df.index + 1
-    return df
-
-
-def _read_ndc_14_filetype_5(mm):
-    record_len = 4096
-    header = 4096
-
-    # Read data records
-    aux = []
-    mm.seek(header)
-    while mm.tell() < mm.size():
-        bytes = mm.read(record_len)
-        for i in struct.iter_unpack('<f', bytes[132:-4]):
-            aux.append(i[0])
-
-    # Create DataFrame
-    aux_df = pd.DataFrame(aux, columns=['T'])
-    aux_df['Index'] = aux_df.index + 1
-
-    return aux_df
-
-
-def _read_ndc_14_filetype_7(mm):
-    return _read_ndc_11_filetype_7(mm)
-
-
-def _read_ndc_14_filetype_18(mm):
-    mm_size = mm.size()
-    record_len = 4096
-    header = 4096
-
-    # Read data records
-    rec = []
-    mm.seek(header)
-    while mm.tell() < mm_size:
-        bytes = mm.read(record_len)
-        for i in struct.iter_unpack('<isffff12siii10s', bytes[132:-59]):
-            Time = i[0]
-            [Charge_Capacity, Discharge_Capacity] = [i[2], i[3]]
-            [Charge_Energy, Discharge_Energy] = [i[4], i[5]]
-            [Timestamp, Step, Index] = [i[7], i[8], i[9]]
-            if Index != 0:
-                rec.append([Time/1000,
-                            Charge_Capacity*1000, Discharge_Capacity*1000,
-                            Charge_Energy*1000, Discharge_Energy*1000,
-                            datetime.fromtimestamp(Timestamp, timezone.utc), Step, Index])
-
-    # Create DataFrame
-    df = pd.DataFrame(rec, columns=[
-        'Time',
-        'Charge_Capacity(mAh)', 'Discharge_Capacity(mAh)',
-        'Charge_Energy(mWh)', 'Discharge_Energy(mWh)',
-        'Timestamp', 'Step', 'Index']).astype({'Time': 'float'})
-    df['Step'] = _count_changes(df['Step'])
-
-    # Convert timestamp to local timezone
-    tz = datetime.now().astimezone().tzinfo
-    df['Timestamp'] = df['Timestamp'].dt.tz_convert(tz)
-
-    return df
-
-
 def _bytes_to_list_ndc(bytes):
     """Helper function for interpreting an ndc byte string"""
 
@@ -551,7 +237,7 @@ class NDAx:
             # Try to read data.ndc
             if 'data.ndc' in self.filelist:
                 data_file = zf.extract('data.ndc', path=tmpdir)
-                self.data_df = read_ndc(data_file)
+                self.data_df = self.read_ndc(data_file)
             else:
                 raise NotImplementedError("File type not yet supported!")
 
@@ -563,8 +249,8 @@ class NDAx:
                 # Read data from separate files
                 runInfo_file = zf.extract('data_runInfo.ndc', path=tmpdir)
                 step_file = zf.extract('data_step.ndc', path=tmpdir)
-                runInfo_df = read_ndc(runInfo_file)
-                step_df = read_ndc(step_file)
+                runInfo_df = self.read_ndc(runInfo_file)
+                step_df = self.read_ndc(step_file)
 
                 # Merge dataframes
                 self.data_df = self.data_df.merge(runInfo_df, how='left', on='Index')
@@ -592,7 +278,7 @@ class NDAx:
 
                 if m:
                     aux_file = zf.extract(f, path=tmpdir)
-                    aux = read_ndc(aux_file)
+                    aux = self.read_ndc(aux_file)
                     aux['Aux'] = aux_id
                     aux_df = pd.concat([aux_df, aux], ignore_index=True)
             if not aux_df.empty:
@@ -606,3 +292,316 @@ class NDAx:
             self.data_df['Cycle'] = _generate_cycle_number(self.data_df, cycle_mode)
 
         self.data_df = self.data_df.astype(dtype=dtype_dict)
+
+    def read_ndc(self, file):
+        """
+        Function to read electrochemical data from a Neware ndc binary file.
+
+        Args:
+            file (str): Name of an .ndc file to read
+        Returns:
+            df (pd.DataFrame): DataFrame containing all records in the file
+            aux_df (pd.DataFrame): DataFrame containing any temperature data
+        """
+        with open(file, 'rb') as f:
+            mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
+
+            # Get ndc file version and filetype
+            [ndc_filetype] = struct.unpack('<B', mm[0:1])
+            [ndc_version] = struct.unpack('<B', mm[2:3])
+            logger.debug(f"NDC version: {ndc_version} filetype: {ndc_filetype}")
+
+            try:
+                f = getattr(sys.modules[__name__].NDAx, f"_read_ndc_{ndc_version}_filetype_{ndc_filetype}")
+                return f(self, mm)
+            except AttributeError:
+                raise NotImplementedError(f"ndc version {ndc_version} filetype {ndc_filetype} is not yet supported!")
+
+
+    def _read_ndc_2_filetype_1(self, mm):
+        record_len = 94
+        identifier = mm[517:525]
+
+        # Read data records
+        output = []
+        header = mm.find(identifier)
+        while header != -1:
+            mm.seek(header)
+            bytes = mm.read(record_len)
+            if bytes[0:1] == b'\x55':
+                output.append(_bytes_to_list_ndc(bytes))
+            else:
+                logger.warning("Unknown record type: "+bytes[0:1].hex())
+
+            header = mm.find(identifier, header + record_len)
+
+        # Postprocessing
+        df = pd.DataFrame(output, columns=rec_columns)
+
+        return df
+
+
+    def _read_ndc_2_filetype_5(self, mm):
+        record_len = 94
+        identifier = mm[517:525]
+
+        # Read aux records
+        aux = []
+        header = mm.find(identifier)
+        while header != -1:
+            mm.seek(header)
+            bytes = mm.read(record_len)
+            if bytes[0:1] == b'\x65':
+                aux.append(_aux_bytes_65_to_list_ndc(bytes))
+            elif bytes[0:1] == b'\x74':
+                aux.append(_aux_bytes_74_to_list_ndc(bytes))
+            else:
+                logger.warning("Unknown record type: "+bytes[0:1].hex())
+
+            header = mm.find(identifier, header + record_len)
+
+        # Postprocessing
+        aux_df = pd.DataFrame([])
+        if identifier[0:1] == b'\x65':
+            aux_df = pd.DataFrame(aux, columns=['Index', 'Aux', 'V', 'T'])
+        elif identifier[0:1] == b'\x74':
+            aux_df = pd.DataFrame(aux, columns=['Index', 'Aux', 'V', 'T', 't'])
+
+        return aux_df
+
+
+    def _read_ndc_5_filetype_1(self, mm):
+        mm_size = mm.size()
+        record_len = 4096
+        header = 4096
+
+        # Read data records
+        output = []
+        mm.seek(header)
+        while mm.tell() < mm_size:
+            bytes = mm.read(record_len)
+            for i in struct.iter_unpack('<87s', bytes[125:-56]):
+                if i[0][7:8] == b'\x55':
+                    output.append(_bytes_to_list_ndc(i[0]))
+
+        # Postprocessing
+        df = pd.DataFrame(output, columns=rec_columns)
+
+        return df
+
+
+    def _read_ndc_5_filetype_5(self, mm):
+        mm_size = mm.size()
+        record_len = 4096
+        header = 4096
+
+        # Read aux records
+        aux65 = []
+        aux74 = []
+        mm.seek(header)
+        while mm.tell() < mm_size:
+            bytes = mm.read(record_len)
+            for i in struct.iter_unpack('<87s', bytes[125:-56]):
+                if i[0][7:8] == b'\x65':
+                    aux65.append(_aux_bytes_65_to_list_ndc(i[0]))
+                elif i[0][7:8] == b'\x74':
+                    aux74.append(_aux_bytes_74_to_list_ndc(i[0]))
+
+        # Concat aux65 and aux74 if they both contain data
+        aux_df = pd.DataFrame(aux65, columns=['Index', 'Aux', 'V', 'T'])
+        aux74_df = pd.DataFrame(aux74, columns=['Index', 'Aux', 'V', 'T', 't'])
+        if (not aux_df.empty) & (not aux74_df.empty):
+            aux_df = pd.concat([aux_df, aux74_df.drop(columns=['t'])])
+        elif (not aux74_df.empty):
+            aux_df = aux74_df
+
+        return aux_df
+
+
+    def _read_ndc_11_filetype_1(self, mm):
+        mm_size = mm.size()
+        record_len = 4096
+        header = 4096
+
+        # Read data records
+        rec = []
+        mm.seek(header)
+        while mm.tell() < mm_size:
+            bytes = mm.read(record_len)
+            for i in struct.iter_unpack('<ff', bytes[132:-4]):
+                if (i[0] != 0):
+                    rec.append([1e-4*i[0], i[1]])
+
+        # Create DataFrame
+        df = pd.DataFrame(rec, columns=['Voltage', 'Current(mA)'])
+        df['Index'] = df.index + 1
+        return df
+
+
+    def _read_ndc_11_filetype_5(self, mm):
+        mm_size = mm.size()
+        record_len = 4096
+        header = 4096
+
+        # Read data records
+        aux = []
+        mm.seek(header)
+
+        if mm[header+132:header+133] == b'\x65':
+            while mm.tell() < mm_size:
+                bytes = mm.read(record_len)
+                for i in struct.iter_unpack('<cfh', bytes[132:-2]):
+                    if i[0] == b'\x65':
+                        aux.append([i[1]/10000, i[2]/10])
+
+            # Create DataFrame
+            aux_df = pd.DataFrame(aux, columns=['V', 'T'])
+            aux_df['Index'] = aux_df.index + 1
+
+        elif mm[header+132:header+133] == b'\x74':
+            while mm.tell() < mm_size:
+                bytes = mm.read(record_len)
+                for i in struct.iter_unpack('<cib29sh51s', bytes[132:-4]):
+                    if i[0] == b'\x74':
+                        aux.append([i[1], i[2], i[4]/10])
+
+            # Create DataFrame
+            aux_df = pd.DataFrame(aux, columns=['Index', 'Aux', 'T'])
+
+        return aux_df
+
+
+    def _read_ndc_11_filetype_7(self, mm):
+        mm_size = mm.size()
+        record_len = 4096
+        header = 4096
+
+        # Read data records
+        rec = []
+        mm.seek(header)
+        while mm.tell() < mm_size:
+            bytes = mm.read(record_len)
+            for i in struct.iter_unpack('<ii16sb12s', bytes[132:-5]):
+                [Cycle, Step_Index, Status] = [i[0], i[1], i[3]]
+                if Step_Index != 0:
+                    rec.append([Cycle+1, Step_Index, state_dict[Status]])
+
+        # Create DataFrame
+        df = pd.DataFrame(rec, columns=['Cycle', 'Step_Index', 'Status'])
+        df['Step'] = df.index + 1
+        return df
+
+
+    def _read_ndc_11_filetype_18(self, mm):
+        mm_size = mm.size()
+        record_len = 4096
+        header = 4096
+
+        # Read data records
+        rec = []
+        mm.seek(header)
+        while mm.tell() < mm_size:
+            bytes = mm.read(record_len)
+            for i in struct.iter_unpack('<isffff12siii2s', bytes[132:-63]):
+                Time = i[0]
+                [Charge_Capacity, Discharge_Capacity] = [i[2], i[3]]
+                [Charge_Energy, Discharge_Energy] = [i[4], i[5]]
+                [Timestamp, Step, Index] = [i[7], i[8], i[9]]
+                if Index != 0:
+                    rec.append([Time/1000,
+                                Charge_Capacity/3600, Discharge_Capacity/3600,
+                                Charge_Energy/3600, Discharge_Energy/3600,
+                                datetime.fromtimestamp(Timestamp, timezone.utc), Step, Index])
+
+        # Create DataFrame
+        df = pd.DataFrame(rec, columns=[
+            'Time',
+            'Charge_Capacity(mAh)', 'Discharge_Capacity(mAh)',
+            'Charge_Energy(mWh)', 'Discharge_Energy(mWh)',
+            'Timestamp', 'Step', 'Index']).astype({'Time': 'float'})
+        df['Step'] = _count_changes(df['Step'])
+
+        # Convert timestamp to local timezone
+        tz = datetime.now().astimezone().tzinfo
+        df['Timestamp'] = df['Timestamp'].dt.tz_convert(tz)
+
+        return df
+
+
+    def _read_ndc_14_filetype_1(self, mm):
+        mm_size = mm.size()
+        record_len = 4096
+        header = 4096
+
+        # Read data records
+        rec = []
+        mm.seek(header)
+        while mm.tell() < mm_size:
+            bytes = mm.read(record_len)
+            for i in struct.iter_unpack('<ff', bytes[132:-4]):
+                if (i[0] != 0):
+                    rec.append([i[0], 1000*i[1]])
+
+        # Create DataFrame
+        df = pd.DataFrame(rec, columns=['Voltage', 'Current(mA)'])
+        df['Index'] = df.index + 1
+        return df
+
+
+    def _read_ndc_14_filetype_5(self, mm):
+        record_len = 4096
+        header = 4096
+
+        # Read data records
+        aux = []
+        mm.seek(header)
+        while mm.tell() < mm.size():
+            bytes = mm.read(record_len)
+            for i in struct.iter_unpack('<f', bytes[132:-4]):
+                aux.append(i[0])
+
+        # Create DataFrame
+        aux_df = pd.DataFrame(aux, columns=['T'])
+        aux_df['Index'] = aux_df.index + 1
+
+        return aux_df
+
+
+    def _read_ndc_14_filetype_7(self, mm):
+        return self._read_ndc_11_filetype_7(mm)
+
+
+    def _read_ndc_14_filetype_18(self, mm):
+        mm_size = mm.size()
+        record_len = 4096
+        header = 4096
+
+        # Read data records
+        rec = []
+        mm.seek(header)
+        while mm.tell() < mm_size:
+            bytes = mm.read(record_len)
+            for i in struct.iter_unpack('<isffff12siii10s', bytes[132:-59]):
+                Time = i[0]
+                [Charge_Capacity, Discharge_Capacity] = [i[2], i[3]]
+                [Charge_Energy, Discharge_Energy] = [i[4], i[5]]
+                [Timestamp, Step, Index] = [i[7], i[8], i[9]]
+                if Index != 0:
+                    rec.append([Time/1000,
+                                Charge_Capacity*1000, Discharge_Capacity*1000,
+                                Charge_Energy*1000, Discharge_Energy*1000,
+                                datetime.fromtimestamp(Timestamp, timezone.utc), Step, Index])
+
+        # Create DataFrame
+        df = pd.DataFrame(rec, columns=[
+            'Time',
+            'Charge_Capacity(mAh)', 'Discharge_Capacity(mAh)',
+            'Charge_Energy(mWh)', 'Discharge_Energy(mWh)',
+            'Timestamp', 'Step', 'Index']).astype({'Time': 'float'})
+        df['Step'] = _count_changes(df['Step'])
+
+        # Convert timestamp to local timezone
+        tz = datetime.now().astimezone().tzinfo
+        df['Timestamp'] = df['Timestamp'].dt.tz_convert(tz)
+
+        return df
