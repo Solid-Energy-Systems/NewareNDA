@@ -34,122 +34,10 @@ def read_ndax(file, software_cycle_number=False, cycle_mode='chg'):
     Returns:
         df (pd.DataFrame): DataFrame containing all records in the file
     """
-    with tempfile.TemporaryDirectory() as tmpdir:
-        zf = zipfile.PyZipFile(file)
-        filelist = zf.namelist()
 
-        # Read version information
-        if 'VersionInfo.xml' in filelist:
-            version_info = zf.extract('VersionInfo.xml', path=tmpdir)
-            with open(version_info, 'r', encoding='gb2312') as f:
-                config = ET.fromstring(f.read()).find('config/ZwjVersion')
-
-            if 'SvrVer' in config.attrib:
-                logger.info(f"Server version: {config.attrib['SvrVer']}")
-            if 'CurrClientVer' in config.attrib:
-                logger.info(f"Client version: {config.attrib['CurrClientVer']}")
-            if 'ZwjVersion' in config.attrib:
-                logger.info(f"Control unit version: {config.attrib['ZwjVersion']}")
-            if 'MainXwjVer' in config.attrib:
-                logger.info(f"Tester version: {config.attrib['MainXwjVer']}")
-
-        # Read active mass.
-        # TODO: if test is edited while running then there are
-        # Step{1,2,3,..}.xml files. We should perhaps check the newest
-        # one rather than Step.xml in case active mass was changed.
-        if 'Step.xml' in filelist:
-            step = zf.extract('Step.xml', path=tmpdir)
-            with open(step, 'r', encoding='gb2312') as f:
-                config = ET.fromstring(f.read()).find('config')
-            if 'Head_Info/SCQ' in config.attrib:
-                active_mass = float(config.find('Head_Info/SCQ').attrib['Value'])
-                logger.info(f"Active mass: {active_mass/1000} mg")
-
-        # Read aux channel mapping and test information from
-        # TestInfo.xml
-        # TODO: if test is edited while running then there are
-        # TestInfo{1,2,3,..}.xml files. Aux mapping and start time are
-        # the same but the Barcode and SN might have changed, so we
-        # should perhaps read newest TestInfo.xml file.
-        aux_ch_dict = {}
-        if 'TestInfo.xml' in filelist:
-            step = zf.extract('TestInfo.xml', path=tmpdir)
-            with open(step, 'r', encoding='gb2312') as f:
-                config = ET.fromstring(f.read()).find('config')
-
-            if 'Barcode' in config.find("TestInfo").attrib:
-                logger.info(f"Test barcode: {config.find('TestInfo').attrib['Barcode']}")
-
-            if 'SN' in config.find("TestInfo").attrib:
-                logger.info(f"Test P/N: {config.find('TestInfo').attrib['SN']}")
-
-            start_time = datetime.strptime(config.find('TestInfo').attrib['StartTime'], '%Y-%m-%d %H:%M:%S')
-            logger.info(f"Test start time: {start_time}")
-
-            num_of_aux = int(config.find("TestInfo").attrib["AuxCount"])
-            for num in range(1, num_of_aux+1):
-                aux = config.find(f"TestInfo/Aux{num}")
-                aux_ch_dict.update({int(aux.attrib['RealChlID']): int(aux.attrib['AuxID'])})
-
-        # Try to read data.ndc
-        if 'data.ndc' in filelist:
-            data_file = zf.extract('data.ndc', path=tmpdir)
-            data_df = read_ndc(data_file)
-        else:
-            raise NotImplementedError("File type not yet supported!")
-
-        # Some ndax have data spread across 3 different ndc files. Others have
-        # all data in data.ndc.
-        # Check if data_runInfo.ndc and data_step.ndc exist
-        if all(i in filelist for i in ['data_runInfo.ndc', 'data_step.ndc']):
-
-            # Read data from separate files
-            runInfo_file = zf.extract('data_runInfo.ndc', path=tmpdir)
-            step_file = zf.extract('data_step.ndc', path=tmpdir)
-            runInfo_df = read_ndc(runInfo_file)
-            step_df = read_ndc(step_file)
-
-            # Merge dataframes
-            data_df = data_df.merge(runInfo_df, how='left', on='Index')
-            data_df['Step'] = data_df['Step'].ffill()
-            data_df = data_df.merge(step_df, how='left', on='Step').reindex(
-                columns=rec_columns)
-
-            # Fill in missing data - Neware appears to fabricate data
-            if data_df.isnull().any(axis=None):
-                _data_interpolation(data_df)
-
-        # Read and merge Aux data from ndc files
-        aux_df = pd.DataFrame([])
-        for f in filelist:
-
-            # If the filename contains a channel number, convert to aux_id
-            m = re.search("data_AUX_([0-9]+)_[0-9]+_[0-9]+[.]ndc", f)
-            if m:
-                ch = int(m[1])
-                aux_id = aux_ch_dict[ch]
-            else:
-                m = re.search(".*_([0-9]+)[.]ndc", f)
-                if m:
-                    aux_id = int(m[1])
-
-            if m:
-                aux_file = zf.extract(f, path=tmpdir)
-                aux = read_ndc(aux_file)
-                aux['Aux'] = aux_id
-                aux_df = pd.concat([aux_df, aux], ignore_index=True)
-        if not aux_df.empty:
-            aux_df = aux_df.astype(
-                {k: aux_dtype_dict[k] for k in aux_dtype_dict.keys() & aux_df.columns})
-            pvt_df = aux_df.pivot(index='Index', columns='Aux')
-            pvt_df.columns = pvt_df.columns.map(lambda x: ''.join(map(str, x)))
-            data_df = data_df.join(pvt_df, on='Index')
-
-    if software_cycle_number:
-        data_df['Cycle'] = _generate_cycle_number(data_df, cycle_mode)
-
-    return data_df.astype(dtype=dtype_dict)
-
+    ndax_file = NDAx(file)
+    ndax_file.read_ndax(software_cycle_number, cycle_mode)
+    return ndax_file.data_df
 
 def _data_interpolation(df):
     """
@@ -562,3 +450,159 @@ def _aux_bytes_74_to_list_ndc(bytes):
     [T, t] = struct.unpack('<hh', bytes[41:45])
 
     return [Index, Aux, V/10000, T/10, t/10]
+
+
+class NDAx:
+    """
+    Object to store all gathered data from an ndax file
+
+    Args:
+        filename (str): Name of an .ndax file to read
+    """
+    def __init__(self, filename):
+        self.filename = filename
+
+        self.barcode = None
+        self.active_mass = None # mg
+        self.start_time = None
+        self.PN = None
+        self.aux_ch_dict = {}
+        self.filelist = []
+        self.data_df = {}
+
+        self.server_version = None
+        self.client_version = None
+        self.control_unit_version = None
+        self.tester_version = None
+
+    def read_ndax(self, software_cycle_number=False, cycle_mode='chg'):
+        """
+        Function to read electrochemical data from a Neware ndax
+        binary file. Populates self.data_df with the read data.
+
+        Args:
+            software_cycle_number (bool): Regenerate the cycle number field
+            cycle_mode (str): Selects how the cycle is incremented.
+                'chg': (Default) Sets new cycles with a Charge step following a Discharge.
+                'dchg': Sets new cycles with a Discharge step following a Charge.
+                'auto': Identifies the first non-rest state as the incremental state.
+
+        """
+        with tempfile.TemporaryDirectory() as tmpdir:
+            zf = zipfile.PyZipFile(self.filename)
+            self.filelist = zf.namelist()
+
+            # Read version information
+            if 'VersionInfo.xml' in self.filelist:
+                version_info = zf.extract('VersionInfo.xml', path=tmpdir)
+                with open(version_info, 'r', encoding='gb2312') as f:
+                    config = ET.fromstring(f.read()).find('config/ZwjVersion')
+
+                if 'SvrVer' in config.attrib:
+                    self.server_version = config.attrib['SvrVer']
+                    logger.info(f"Server version: {self.server_version}")
+                if 'CurrClientVer' in config.attrib:
+                    self.client_version = config.attrib['CurrClientVer']
+                    logger.info(f"Client version: {self.client_version}")
+                if 'ZwjVersion' in config.attrib:
+                    self.control_unit_version = config.attrib['ZwjVersion']
+                    logger.info(f"Control unit version: {self.control_unit_version}")
+                if 'MainXwjVer' in config.attrib:
+                    self.tester_version = config.attrib['MainXwjVer']
+                    logger.info(f"Tester version: {self.tester_version}")
+
+            # Read active mass.
+            # TODO: if test is edited while running then there are
+            # Step{1,2,3,..}.xml files. We should perhaps check the newest
+            # one rather than Step.xml in case active mass was changed.
+            if 'Step.xml' in self.filelist:
+                step = zf.extract('Step.xml', path=tmpdir)
+                with open(step, 'r', encoding='gb2312') as f:
+                    config = ET.fromstring(f.read()).find('config')
+                if 'Head_Info/SCQ' in config.attrib:
+                    active_mass = float(config.find('Head_Info/SCQ').attrib['Value'])
+                    logger.info(f"Active mass: {active_mass/1000} mg")
+
+            # Read aux channel mapping and test information from
+            # TestInfo.xml
+            # TODO: if test is edited while running then there are
+            # TestInfo{1,2,3,..}.xml files. Aux mapping and start time are
+            # the same but the Barcode and SN might have changed, so we
+            # should perhaps read newest TestInfo.xml file.
+            if 'TestInfo.xml' in self.filelist:
+                step = zf.extract('TestInfo.xml', path=tmpdir)
+                with open(step, 'r', encoding='gb2312') as f:
+                    config = ET.fromstring(f.read()).find('config')
+
+                if 'Barcode' in config.find("TestInfo").attrib:
+                    logger.info(f"Test barcode: {config.find('TestInfo').attrib['Barcode']}")
+
+                if 'SN' in config.find("TestInfo").attrib:
+                    logger.info(f"Test P/N: {config.find('TestInfo').attrib['SN']}")
+
+                self.start_time = datetime.strptime(config.find('TestInfo').attrib['StartTime'], '%Y-%m-%d %H:%M:%S')
+                logger.info(f"Test start time: {self.start_time}")
+
+                num_of_aux = int(config.find("TestInfo").attrib["AuxCount"])
+                for num in range(1, num_of_aux+1):
+                    aux = config.find(f"TestInfo/Aux{num}")
+                    self.aux_ch_dict.update({int(aux.attrib['RealChlID']): int(aux.attrib['AuxID'])})
+
+            # Try to read data.ndc
+            if 'data.ndc' in self.filelist:
+                data_file = zf.extract('data.ndc', path=tmpdir)
+                self.data_df = read_ndc(data_file)
+            else:
+                raise NotImplementedError("File type not yet supported!")
+
+            # Some ndax have data spread across 3 different ndc files. Others have
+            # all data in data.ndc.
+            # Check if data_runInfo.ndc and data_step.ndc exist
+            if all(i in self.filelist for i in ['data_runInfo.ndc', 'data_step.ndc']):
+
+                # Read data from separate files
+                runInfo_file = zf.extract('data_runInfo.ndc', path=tmpdir)
+                step_file = zf.extract('data_step.ndc', path=tmpdir)
+                runInfo_df = read_ndc(runInfo_file)
+                step_df = read_ndc(step_file)
+
+                # Merge dataframes
+                self.data_df = self.data_df.merge(runInfo_df, how='left', on='Index')
+                self.data_df['Step'] = self.data_df['Step'].ffill()
+                self.data_df = self.data_df.merge(step_df, how='left', on='Step').reindex(
+                    columns=rec_columns)
+
+                # Fill in missing data - Neware appears to fabricate data
+                if self.data_df.isnull().any(axis=None):
+                    _data_interpolation(self.data_df)
+
+            # Read and merge Aux data from ndc files
+            aux_df = pd.DataFrame([])
+            for f in self.filelist:
+
+                # If the filename contains a channel number, convert to aux_id
+                m = re.search("data_AUX_([0-9]+)_[0-9]+_[0-9]+[.]ndc", f)
+                if m:
+                    ch = int(m[1])
+                    aux_id = self.aux_ch_dict[ch]
+                else:
+                    m = re.search(".*_([0-9]+)[.]ndc", f)
+                    if m:
+                        aux_id = int(m[1])
+
+                if m:
+                    aux_file = zf.extract(f, path=tmpdir)
+                    aux = read_ndc(aux_file)
+                    aux['Aux'] = aux_id
+                    aux_df = pd.concat([aux_df, aux], ignore_index=True)
+            if not aux_df.empty:
+                aux_df = aux_df.astype(
+                    {k: aux_dtype_dict[k] for k in aux_dtype_dict.keys() & aux_df.columns})
+                pvt_df = aux_df.pivot(index='Index', columns='Aux')
+                pvt_df.columns = pvt_df.columns.map(lambda x: ''.join(map(str, x)))
+                self.data_df = self.data_df.join(pvt_df, on='Index')
+
+        if software_cycle_number:
+            self.data_df['Cycle'] = _generate_cycle_number(self.data_df, cycle_mode)
+
+        self.data_df = self.data_df.astype(dtype=dtype_dict)
