@@ -53,15 +53,17 @@ def read_ndax(file, software_cycle_number=False, cycle_mode='chg'):
             if 'MainXwjVer' in config.attrib:
                 logger.info(f"Tester version: {config.attrib['MainXwjVer']}")
 
-        # Read active mass
-        try:
+        # Read active mass.
+        # TODO: if test is edited while running then there are
+        # Step{1,2,3,..}.xml files. We should perhaps check the newest
+        # one rather than Step.xml in case active mass was changed.
+        if 'Step.xml' in filelist:
             step = zf.extract('Step.xml', path=tmpdir)
             with open(step, 'r', encoding='gb2312') as f:
                 config = ET.fromstring(f.read()).find('config')
-            active_mass = float(config.find('Head_Info/SCQ').attrib['Value'])
-            logger.info(f"Active mass: {active_mass/1000} mg")
-        except Exception:
-            pass
+            if 'Head_Info/SCQ' in config.attrib:
+                active_mass = float(config.find('Head_Info/SCQ').attrib['Value'])
+                logger.info(f"Active mass: {active_mass/1000} mg")
 
         # Read aux channel mapping and test information from
         # TestInfo.xml
