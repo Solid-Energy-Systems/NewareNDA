@@ -9,7 +9,7 @@ import logging
 import tempfile
 import zipfile
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import xml.etree.ElementTree as ET
 import pandas as pd
 
@@ -500,18 +500,41 @@ class NDAx:
         # Read data records
         rec = []
         mm.seek(header)
+        first = True
         while mm.tell() < mm_size:
             bytes = mm.read(record_len)
             for i in struct.iter_unpack('<isffff12siii2s', bytes[132:-63]):
                 Time = i[0]
                 [Charge_Capacity, Discharge_Capacity] = [i[2], i[3]]
                 [Charge_Energy, Discharge_Energy] = [i[4], i[5]]
-                [Timestamp, Step, Index] = [i[7], i[8], i[9]]
+                Timestamp = datetime.fromtimestamp(i[7], timezone.utc)
+                [Step, Index] = [i[8], i[9]]
+
+                if first:
+                    # Figure out timezone by comparing with StartTime in
+                    # TestInfo.xml. The first timestamp seem to be 1 s or
+                    # less after StartTime. Check for > 2 s to give it
+                    # some wiggle room.
+                    seconds = self.start_time.replace(tzinfo=timezone.utc) - Timestamp
+                    if abs(seconds) > timedelta(seconds = 2):
+                        # Get time difference rounded to nearest 30 min
+                        unit_seconds = timedelta(minutes = 30).total_seconds()
+                        half_over = seconds.total_seconds() + unit_seconds / 2
+                        rounded_seconds = half_over - (half_over % unit_seconds)
+                        time_delta = timedelta(seconds = rounded_seconds)
+                    else:
+                        time_delta = timedelta(seconds = 0)
+                first = False
+
+                # Return timestamp in absolute time of test machine, to
+                # get consistent behaviour with older ndc versions.
+                Timestamp = Timestamp + time_delta
+
                 if Index != 0:
                     rec.append([Time/1000,
                                 Charge_Capacity/3600, Discharge_Capacity/3600,
                                 Charge_Energy/3600, Discharge_Energy/3600,
-                                datetime.fromtimestamp(Timestamp, timezone.utc), Step, Index])
+                                Timestamp, Step, Index])
 
         # Create DataFrame
         df = pd.DataFrame(rec, columns=[
@@ -520,10 +543,7 @@ class NDAx:
             'Charge_Energy(mWh)', 'Discharge_Energy(mWh)',
             'Timestamp', 'Step', 'Index']).astype({'Time': 'float'})
         df['Step'] = _count_changes(df['Step'])
-
-        # Convert timestamp to local timezone
-        tz = datetime.now().astimezone().tzinfo
-        df['Timestamp'] = df['Timestamp'].dt.tz_convert(tz)
+        df['Timestamp'] = df['Timestamp'].dt.tz_convert(None)
 
         return df
 
@@ -579,18 +599,42 @@ class NDAx:
         # Read data records
         rec = []
         mm.seek(header)
+        first = True
         while mm.tell() < mm_size:
             bytes = mm.read(record_len)
             for i in struct.iter_unpack('<isffff12siii10s', bytes[132:-59]):
                 Time = i[0]
                 [Charge_Capacity, Discharge_Capacity] = [i[2], i[3]]
                 [Charge_Energy, Discharge_Energy] = [i[4], i[5]]
-                [Timestamp, Step, Index] = [i[7], i[8], i[9]]
+                Timestamp = datetime.fromtimestamp(i[7], timezone.utc)
+                [Step, Index] = [i[8], i[9]]
+
                 if Index != 0:
+                    if first:
+                        # Figure out timezone by comparing with StartTime in
+                        # TestInfo.xml. The first timestamp seem to be 1 s or
+                        # less after StartTime. Check for > 2 s to give it
+                        # some wiggle room.
+                        seconds = self.start_time.replace(tzinfo=timezone.utc) - Timestamp
+                        if abs(seconds) > timedelta(seconds = 2):
+                            # Get time difference rounded to nearest 30 min
+                            unit_seconds = timedelta(minutes = 30).total_seconds()
+                            half_over = seconds.total_seconds() + unit_seconds / 2
+                            rounded_seconds = half_over - (half_over % unit_seconds)
+                            time_delta = timedelta(seconds = rounded_seconds)
+                        else:
+                            time_delta = timedelta(seconds = 0)
+
+                    first = False
+
+                    # Return timestamp in absolute time of test machine, to
+                    # get consistent behaviour with older ndc versions.
+                    Timestamp = Timestamp + time_delta
+
                     rec.append([Time/1000,
                                 Charge_Capacity*1000, Discharge_Capacity*1000,
                                 Charge_Energy*1000, Discharge_Energy*1000,
-                                datetime.fromtimestamp(Timestamp, timezone.utc), Step, Index])
+                                Timestamp, Step, Index])
 
         # Create DataFrame
         df = pd.DataFrame(rec, columns=[
@@ -599,9 +643,6 @@ class NDAx:
             'Charge_Energy(mWh)', 'Discharge_Energy(mWh)',
             'Timestamp', 'Step', 'Index']).astype({'Time': 'float'})
         df['Step'] = _count_changes(df['Step'])
-
-        # Convert timestamp to local timezone
-        tz = datetime.now().astimezone().tzinfo
-        df['Timestamp'] = df['Timestamp'].dt.tz_convert(tz)
+        df['Timestamp'] = df['Timestamp'].dt.tz_convert(None)
 
         return df
