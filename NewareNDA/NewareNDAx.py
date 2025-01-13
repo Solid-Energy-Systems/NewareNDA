@@ -39,16 +39,19 @@ def read_ndax(file, software_cycle_number=False, cycle_mode='chg'):
         filelist = zf.namelist()
 
         # Read version information
-        try:
+        if 'VersionInfo.xml' in filelist:
             version_info = zf.extract('VersionInfo.xml', path=tmpdir)
             with open(version_info, 'r', encoding='gb2312') as f:
                 config = ET.fromstring(f.read()).find('config/ZwjVersion')
-            logger.info(f"Server version: {config.attrib['SvrVer']}")
-            logger.info(f"Client version: {config.attrib['CurrClientVer']}")
-            logger.info(f"Control unit version: {config.attrib['ZwjVersion']}")
-            logger.info(f"Tester version: {config.attrib['MainXwjVer']}")
-        except Exception:
-            pass
+
+            if 'SvrVer' in config.attrib:
+                logger.info(f"Server version: {config.attrib['SvrVer']}")
+            if 'CurrClientVer' in config.attrib:
+                logger.info(f"Client version: {config.attrib['CurrClientVer']}")
+            if 'ZwjVersion' in config.attrib:
+                logger.info(f"Control unit version: {config.attrib['ZwjVersion']}")
+            if 'MainXwjVer' in config.attrib:
+                logger.info(f"Tester version: {config.attrib['MainXwjVer']}")
 
         # Read active mass
         try:
