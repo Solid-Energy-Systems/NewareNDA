@@ -29,7 +29,19 @@ pip install .
 # Usage
 ```
 import NewareNDA
-df = NewareNDA.read('filename.nda')
+df = NewareNDA.read('filename.nda(x)')
+```
+
+If you are only dealing with ndax files you can also import an NDAx class, and get access to metadata:
+
+```
+from NewareNDA.NewareNDAx import NDAx
+
+ndax = NDAx('filename.ndax')
+ndax_file.read_ndax()
+data = ndax_file.data_df
+# Test parameters like ndax_file.{barcode,active_mass,PN,start_time} can now be accessed,
+# and test equipment parameters like ndax_file.{server,client,control_unit,tester}_version
 ```
 
 ## Logging
