@@ -42,6 +42,7 @@ state_dict = {
     19: 'CV_DChg',
     20: 'CCCV_DChg',
     21: 'Control',
+    22: 'OCV',
     26: 'CPCV_DChg',
     27: 'CPCV_Chg'
 }
