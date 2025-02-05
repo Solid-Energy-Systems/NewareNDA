@@ -389,16 +389,17 @@ def _read_ndc_11_filetype_18(mm):
     mm.seek(header)
     while mm.tell() < mm_size:
         bytes = mm.read(record_len)
-        for i in struct.iter_unpack('<isffff12siii2s', bytes[132:-63]):
+        for i in struct.iter_unpack('<isffff12siiih', bytes[132:-63]):
             Time = i[0]
             [Charge_Capacity, Discharge_Capacity] = [i[2], i[3]]
             [Charge_Energy, Discharge_Energy] = [i[4], i[5]]
             [Timestamp, Step, Index] = [i[7], i[8], i[9]]
+            Msec = i[10]
             if Index != 0:
                 rec.append([Time/1000,
                             Charge_Capacity/3600, Discharge_Capacity/3600,
                             Charge_Energy/3600, Discharge_Energy/3600,
-                            datetime.fromtimestamp(Timestamp, timezone.utc), Step, Index])
+                            datetime.fromtimestamp(Timestamp + Msec/1000, timezone.utc), Step, Index])
 
     # Create DataFrame
     df = pd.DataFrame(rec, columns=[
