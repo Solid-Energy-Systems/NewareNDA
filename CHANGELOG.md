@@ -5,6 +5,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [v2025.02.13]
+### Added
+- Millisecond timestamp accuracy for ndc 11 and 14
+- Support for OCV step type
+- Additional current range
+
+### Fixed
+- Timestamp interpolation bug that occasionally resulted in negative dt
+
+
 ## [v2025.01.02]
 ### Added
 - Additional current range settings
