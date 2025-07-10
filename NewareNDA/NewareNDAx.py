@@ -1,6 +1,6 @@
-# © 2022-2024 Copyright SES AI
-# Author: Daniel Cogswell
-# Email: danielcogswell@ses.ai
+# © 2022-2024 版权所有 SES AI
+# 作者：Daniel Cogswell
+# 邮箱：danielcogswell@ses.ai
 
 import sys
 import mmap
@@ -22,22 +22,22 @@ logger = logging.getLogger('newarenda')
 
 def read_ndax(file, software_cycle_number=False, cycle_mode='chg'):
     """
-    Function to read electrochemical data from a Neware ndax binary file.
+    从 Neware ndax 二进制文件中读取电化学数据的函数。
 
-    Args:
-        file (str): Name of an .ndax file to read
-        software_cycle_number (bool): Regenerate the cycle number field
-        cycle_mode (str): Selects how the cycle is incremented.
-            'chg': (Default) Sets new cycles with a Charge step following a Discharge.
-            'dchg': Sets new cycles with a Discharge step following a Charge.
-            'auto': Identifies the first non-rest state as the incremental state.
-    Returns:
-        df (pd.DataFrame): DataFrame containing all records in the file
+    参数：
+        file (str)：要读取的 .ndax 文件名
+        software_cycle_number (bool)：重新生成循环编号字段
+        cycle_mode (str)：选择循环递增方式。
+            'chg': (默认) 在放电后以充电步骤设置新循环。
+            'dchg': 在充电后以放电步骤设置新循环。
+            'auto': 将第一个非静置状态识别为递增状态。
+    返回：
+        df (pd.DataFrame)：包含文件中所有记录的 DataFrame
     """
     with tempfile.TemporaryDirectory() as tmpdir:
         zf = zipfile.PyZipFile(file)
 
-        # Read version information
+        # 读取版本信息
         try:
             version_info = zf.extract('VersionInfo.xml', path=tmpdir)
             with open(version_info, 'r', encoding='gb2312') as f:
@@ -49,7 +49,7 @@ def read_ndax(file, software_cycle_number=False, cycle_mode='chg'):
         except Exception:
             pass
 
-        # Read active mass
+        # 读取活性物质质量
         try:
             step = zf.extract('Step.xml', path=tmpdir)
             with open(step, 'r', encoding='gb2312') as f:
@@ -59,7 +59,7 @@ def read_ndax(file, software_cycle_number=False, cycle_mode='chg'):
         except Exception:
             pass
 
-        # Read aux channel mapping from TestInfo.xml
+        # 从 TestInfo.xml 读取辅助通道映射
         aux_ch_dict = {}
         try:
             step = zf.extract('TestInfo.xml', path=tmpdir)
@@ -72,19 +72,18 @@ def read_ndax(file, software_cycle_number=False, cycle_mode='chg'):
         except Exception:
             pass
 
-        # Try to read data.ndc
+        # 尝试读取 data.ndc
         if 'data.ndc' in zf.namelist():
             data_file = zf.extract('data.ndc', path=tmpdir)
             data_df = read_ndc(data_file)
         else:
             raise NotImplementedError("File type not yet supported!")
 
-        # Some ndax have data spread across 3 different ndc files. Others have
-        # all data in data.ndc.
-        # Check if data_runInfo.ndc and data_step.ndc exist
+        # 有些 ndax 文件的数据分散在 3 个不同的 ndc 文件中。其他文件则将所有数据放在 data.ndc 中。
+        # 检查 data_runInfo.ndc 和 data_step.ndc 是否存在
         if all(i in zf.namelist() for i in ['data_runInfo.ndc', 'data_step.ndc']):
 
-            # Read data from separate files
+            # 合并数据帧
             runInfo_file = zf.extract('data_runInfo.ndc', path=tmpdir)
             step_file = zf.extract('data_step.ndc', path=tmpdir)
             runInfo_df = read_ndc(runInfo_file)
@@ -96,15 +95,15 @@ def read_ndax(file, software_cycle_number=False, cycle_mode='chg'):
             data_df = data_df.merge(step_df, how='left', on='Step').reindex(
                 columns=rec_columns)
 
-            # Fill in missing data - Neware appears to fabricate data
+            # 填充缺失数据 - Neware 似乎会伪造数据
             if data_df.isnull().any(axis=None):
                 _data_interpolation(data_df)
 
-        # Read and merge Aux data from ndc files
+        # 从 ndc 文件中读取并合并辅助数据
         aux_df = pd.DataFrame([])
         for f in zf.namelist():
 
-            # If the filename contains a channel number, convert to aux_id
+            # 如果文件名包含通道号，则转换为 aux_id
             m = re.search("data_AUX_([0-9]+)_[0-9]+_[0-9]+[.]ndc", f)
             if m:
                 ch = int(m[1])
@@ -134,32 +133,32 @@ def read_ndax(file, software_cycle_number=False, cycle_mode='chg'):
 
 def _data_interpolation(df):
     """
-    Some ndax from from BTS Server 8 do not seem to contain a complete dataset.
-    This helper function fills in missing times, capacities, and energies.
+    来自 BTS Server 8 的某些 ndax 文件似乎不包含完整数据集。
+    此辅助函数填充缺失的时间、容量和能量。
     """
     logger.warning("IMPORTANT: This ndax has missing data. The output from "
                    "NewareNDA contains interpolated data!")
 
-    # Identify the valid data
+    # 识别有效数据
     nan_mask = df['Time'].notnull()
 
-    # Group by step and run 'inside' interpolation on Time
+    # 按步骤分组并对时间执行"内部"插值
     df['Time'] = df.groupby('Step')['Time'].transform(
         lambda x: pd.Series.interpolate(x, limit_area='inside'))
 
-    # Perform extrapolation to generate the remaining missing Time
+    # 执行外推以生成剩余的缺失时间
     nan_mask2 = df['Time'].notnull()
     time_inc = df['Time'].diff().ffill().groupby(nan_mask2.cumsum()).cumsum()
     time = df['Time'].ffill() + time_inc.shift()
     df['Time'] = df['Time'].where(nan_mask2, time)
 
-    # Fill in missing Timestamps
+    # 填充缺失的时间戳
     time_inc = df['Time'].diff().groupby(nan_mask.shift().cumsum()).cumsum()
     timestamp = df['Timestamp'].ffill() + \
         pd.to_timedelta(time_inc.fillna(0), unit='s')
     df['Timestamp'] = df['Timestamp'].where(nan_mask, timestamp)
 
-    # Integrate to get capacity and fill missing values
+    # 积分获取容量并填充缺失值
     capacity = df['Time'].diff()*abs(df['Current(mA)'])/3600
     inc = capacity.groupby(nan_mask.cumsum()).cumsum()
     chg = df['Charge_Capacity(mAh)'].ffill() + \
@@ -169,7 +168,7 @@ def _data_interpolation(df):
     df['Charge_Capacity(mAh)'] = df['Charge_Capacity(mAh)'].where(nan_mask, chg)
     df['Discharge_Capacity(mAh)'] = df['Discharge_Capacity(mAh)'].where(nan_mask, dch)
 
-    # Integrate to get energy and fill missing values
+    # 积分获取能量并填充缺失值
     energy = capacity*df['Voltage']
     inc = energy.groupby(nan_mask.cumsum()).cumsum()
     chg = df['Charge_Energy(mWh)'].ffill() + \
@@ -182,18 +181,18 @@ def _data_interpolation(df):
 
 def read_ndc(file):
     """
-    Function to read electrochemical data from a Neware ndc binary file.
+    从 Neware ndc 二进制文件中读取电化学数据的函数。
 
-    Args:
-        file (str): Name of an .ndc file to read
-    Returns:
-        df (pd.DataFrame): DataFrame containing all records in the file
-        aux_df (pd.DataFrame): DataFrame containing any temperature data
+    参数：
+        file (str)：要读取的 .ndc 文件名
+    返回：
+        df (pd.DataFrame)：包含文件中所有记录的 DataFrame
+        aux_df (pd.DataFrame)：包含任何温度数据的 DataFrame
     """
     with open(file, 'rb') as f:
         mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
 
-        # Get ndc file version and filetype
+        # 获取 ndc 文件版本和文件类型
         [ndc_filetype] = struct.unpack('<B', mm[0:1])
         [ndc_version] = struct.unpack('<B', mm[2:3])
         logger.debug(f"NDC version: {ndc_version} filetype: {ndc_filetype}")
@@ -209,7 +208,7 @@ def _read_ndc_2_filetype_1(mm):
     record_len = 94
     identifier = mm[517:525]
 
-    # Read data records
+    # 读取数据记录
     output = []
     header = mm.find(identifier)
     while header != -1:
@@ -218,11 +217,11 @@ def _read_ndc_2_filetype_1(mm):
         if bytes[0:1] == b'\x55':
             output.append(_bytes_to_list_ndc(bytes))
         else:
-            logger.warning("Unknown record type: "+bytes[0:1].hex())
+            logger.warning("未知记录类型：" + bytes[0:1].hex())
 
         header = mm.find(identifier, header + record_len)
 
-    # Postprocessing
+    # 后处理
     df = pd.DataFrame(output, columns=rec_columns)
 
     return df
@@ -232,7 +231,7 @@ def _read_ndc_2_filetype_5(mm):
     record_len = 94
     identifier = mm[517:525]
 
-    # Read aux records
+    # 读取辅助记录
     aux = []
     header = mm.find(identifier)
     while header != -1:
@@ -243,11 +242,11 @@ def _read_ndc_2_filetype_5(mm):
         elif bytes[0:1] == b'\x74':
             aux.append(_aux_bytes_74_to_list_ndc(bytes))
         else:
-            logger.warning("Unknown record type: "+bytes[0:1].hex())
+            logger.warning("未知记录类型：" + bytes[0:1].hex())
 
         header = mm.find(identifier, header + record_len)
 
-    # Postprocessing
+    # 后处理
     aux_df = pd.DataFrame([])
     if identifier[0:1] == b'\x65':
         aux_df = pd.DataFrame(aux, columns=['Index', 'Aux', 'V', 'T'])
@@ -262,7 +261,7 @@ def _read_ndc_5_filetype_1(mm):
     record_len = 4096
     header = 4096
 
-    # Read data records
+    # 读取数据记录
     output = []
     mm.seek(header)
     while mm.tell() < mm_size:
@@ -271,7 +270,7 @@ def _read_ndc_5_filetype_1(mm):
             if i[0][7:8] == b'\x55':
                 output.append(_bytes_to_list_ndc(i[0]))
 
-    # Postprocessing
+    # 后处理
     df = pd.DataFrame(output, columns=rec_columns)
 
     return df
@@ -282,7 +281,7 @@ def _read_ndc_5_filetype_5(mm):
     record_len = 4096
     header = 4096
 
-    # Read aux records
+    # 读取辅助记录
     aux65 = []
     aux74 = []
     mm.seek(header)
@@ -294,7 +293,7 @@ def _read_ndc_5_filetype_5(mm):
             elif i[0][7:8] == b'\x74':
                 aux74.append(_aux_bytes_74_to_list_ndc(i[0]))
 
-    # Concat aux65 and aux74 if they both contain data
+    # 如果 aux_df 和 aux74_df 都包含数据，则连接它们
     aux_df = pd.DataFrame(aux65, columns=['Index', 'Aux', 'V', 'T'])
     aux74_df = pd.DataFrame(aux74, columns=['Index', 'Aux', 'V', 'T', 't'])
     if (not aux_df.empty) & (not aux74_df.empty):
@@ -310,7 +309,7 @@ def _read_ndc_11_filetype_1(mm):
     record_len = 4096
     header = 4096
 
-    # Read data records
+    # 读取数据记录
     rec = []
     mm.seek(header)
     while mm.tell() < mm_size:
@@ -319,7 +318,7 @@ def _read_ndc_11_filetype_1(mm):
             if (i[0] != 0):
                 rec.append([1e-4*i[0], i[1]])
 
-    # Create DataFrame
+    # 创建 DataFrame
     df = pd.DataFrame(rec, columns=['Voltage', 'Current(mA)'])
     df['Index'] = df.index + 1
     return df
@@ -330,7 +329,7 @@ def _read_ndc_11_filetype_5(mm):
     record_len = 4096
     header = 4096
 
-    # Read data records
+    # 读取数据记录
     aux = []
     mm.seek(header)
 
@@ -341,7 +340,7 @@ def _read_ndc_11_filetype_5(mm):
                 if i[0] == b'\x65':
                     aux.append([i[1]/10000, i[2]/10])
 
-        # Create DataFrame
+        # 创建 DataFrame
         aux_df = pd.DataFrame(aux, columns=['V', 'T'])
         aux_df['Index'] = aux_df.index + 1
 
@@ -352,7 +351,7 @@ def _read_ndc_11_filetype_5(mm):
                 if i[0] == b'\x74':
                     aux.append([i[1], i[2], i[4]/10])
 
-        # Create DataFrame
+        # 创建 DataFrame
         aux_df = pd.DataFrame(aux, columns=['Index', 'Aux', 'T'])
 
     return aux_df
@@ -363,7 +362,7 @@ def _read_ndc_11_filetype_7(mm):
     record_len = 4096
     header = 4096
 
-    # Read data records
+    # 读取数据记录
     rec = []
     mm.seek(header)
     while mm.tell() < mm_size:
@@ -373,7 +372,7 @@ def _read_ndc_11_filetype_7(mm):
             if Step_Index != 0:
                 rec.append([Cycle+1, Step_Index, state_dict[Status]])
 
-    # Create DataFrame
+    # 创建 DataFrame
     df = pd.DataFrame(rec, columns=['Cycle', 'Step_Index', 'Status'])
     df['Step'] = df.index + 1
     return df
@@ -384,7 +383,7 @@ def _read_ndc_11_filetype_18(mm):
     record_len = 4096
     header = 4096
 
-    # Read data records
+    # 读取数据记录
     rec = []
     mm.seek(header)
     while mm.tell() < mm_size:
@@ -401,7 +400,7 @@ def _read_ndc_11_filetype_18(mm):
                             Charge_Energy/3600, Discharge_Energy/3600,
                             datetime.fromtimestamp(Timestamp + Msec/1000, timezone.utc), Step, Index])
 
-    # Create DataFrame
+    # 创建 DataFrame
     df = pd.DataFrame(rec, columns=[
         'Time',
         'Charge_Capacity(mAh)', 'Discharge_Capacity(mAh)',
@@ -409,7 +408,7 @@ def _read_ndc_11_filetype_18(mm):
         'Timestamp', 'Step', 'Index']).astype({'Time': 'float'})
     df['Step'] = _count_changes(df['Step'])
 
-    # Convert timestamp to local timezone
+    # 将时间戳转换为本地时区
     tz = datetime.now().astimezone().tzinfo
     df['Timestamp'] = df['Timestamp'].dt.tz_convert(tz)
 
@@ -421,7 +420,7 @@ def _read_ndc_14_filetype_1(mm):
     record_len = 4096
     header = 4096
 
-    # Read data records
+    # 读取数据记录
     rec = []
     mm.seek(header)
     while mm.tell() < mm_size:
@@ -430,7 +429,7 @@ def _read_ndc_14_filetype_1(mm):
             if (i[0] != 0):
                 rec.append([i[0], 1000*i[1]])
 
-    # Create DataFrame
+    # 创建 DataFrame
     df = pd.DataFrame(rec, columns=['Voltage', 'Current(mA)'])
     df['Index'] = df.index + 1
     return df
@@ -440,7 +439,7 @@ def _read_ndc_14_filetype_5(mm):
     record_len = 4096
     header = 4096
 
-    # Read data records
+    # 读取数据记录
     aux = []
     mm.seek(header)
     while mm.tell() < mm.size():
@@ -448,7 +447,7 @@ def _read_ndc_14_filetype_5(mm):
         for i in struct.iter_unpack('<f', bytes[132:-4]):
             aux.append(i[0])
 
-    # Create DataFrame
+    # 创建 DataFrame
     aux_df = pd.DataFrame(aux, columns=['T'])
     aux_df['Index'] = aux_df.index + 1
 
@@ -464,7 +463,7 @@ def _read_ndc_14_filetype_18(mm):
     record_len = 4096
     header = 4096
 
-    # Read data records
+    # 读取数据记录
     rec = []
     mm.seek(header)
     while mm.tell() < mm_size:
@@ -481,7 +480,7 @@ def _read_ndc_14_filetype_18(mm):
                             Charge_Energy*1000, Discharge_Energy*1000,
                             datetime.fromtimestamp(Timestamp + Msec/1000, timezone.utc), Step, Index])
 
-    # Create DataFrame
+    # 创建 DataFrame
     df = pd.DataFrame(rec, columns=[
         'Time',
         'Charge_Capacity(mAh)', 'Discharge_Capacity(mAh)',
@@ -489,7 +488,7 @@ def _read_ndc_14_filetype_18(mm):
         'Timestamp', 'Step', 'Index']).astype({'Time': 'float'})
     df['Step'] = _count_changes(df['Step'])
 
-    # Convert timestamp to local timezone
+    # 将时间戳转换为本地时区
     tz = datetime.now().astimezone().tzinfo
     df['Timestamp'] = df['Timestamp'].dt.tz_convert(tz)
 
@@ -497,9 +496,9 @@ def _read_ndc_14_filetype_18(mm):
 
 
 def _bytes_to_list_ndc(bytes):
-    """Helper function for interpreting an ndc byte string"""
+    """解释 ndc 字节字符串的辅助函数"""
 
-    # Extract fields from byte string
+    # 从字节字符串中提取字段
     [Index, Cycle, Step, Status] = struct.unpack('<IIBB', bytes[8:18])
     [Time, Voltage, Current] = struct.unpack('<Qii', bytes[23:39])
     [Charge_capacity, Discharge_capacity,
@@ -509,7 +508,7 @@ def _bytes_to_list_ndc(bytes):
 
     multiplier = multiplier_dict[Range]
 
-    # Create a record
+    # 创建记录
     list = [
         Index,
         Cycle + 1,
@@ -528,7 +527,7 @@ def _bytes_to_list_ndc(bytes):
 
 
 def _aux_bytes_65_to_list_ndc(bytes):
-    """Helper function for intepreting auxiliary records"""
+    """解释辅助记录的辅助函数"""
     [Aux] = struct.unpack('<B', bytes[3:4])
     [Index] = struct.unpack('<I', bytes[8:12])
     [T] = struct.unpack('<h', bytes[41:43])
@@ -538,7 +537,7 @@ def _aux_bytes_65_to_list_ndc(bytes):
 
 
 def _aux_bytes_74_to_list_ndc(bytes):
-    """Helper function for intepreting auxiliary records"""
+    """解释辅助记录的辅助函数"""
     [Aux] = struct.unpack('<B', bytes[3:4])
     [Index] = struct.unpack('<I', bytes[8:12])
     [V] = struct.unpack('<i', bytes[31:35])

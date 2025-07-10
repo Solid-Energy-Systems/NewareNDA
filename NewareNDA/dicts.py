@@ -1,10 +1,10 @@
-# Names for data fields
+# 数据字段名称
 rec_columns = [
     'Index', 'Cycle', 'Step', 'Status', 'Time', 'Voltage',
     'Current(mA)', 'Charge_Capacity(mAh)', 'Discharge_Capacity(mAh)',
     'Charge_Energy(mWh)', 'Discharge_Energy(mWh)', 'Timestamp']
 
-# Define precision of fields
+# 定义字段精度
 dtype_dict = {
     'Index': 'uint32',
     'Cycle': 'uint16',
@@ -25,7 +25,7 @@ aux_dtype_dict = {
     't': 'float32'
 }
 
-# Dictionary mapping Status integer to string
+# 将状态整数映射到字符串的字典
 state_dict = {
     1: 'CC_Chg',
     2: 'CC_DChg',
@@ -47,7 +47,7 @@ state_dict = {
     27: 'CPCV_Chg'
 }
 
-# Define field scaling based on instrument Range setting
+# 根据仪器量程设置定义字段缩放
 multiplier_dict = {
     -100000000: 10,
     -200000: 1e-2,

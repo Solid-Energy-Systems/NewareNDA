@@ -5,11 +5,11 @@ logger = logging.getLogger('newarenda')
 
 def _generate_cycle_number(df, cycle_mode='chg'):
     """
-    Generate a cycle number to match Neware.
+    生成与 Neware 匹配的循环编号。
 
-    cycle_mode = chg: (Default) Sets new cycles with a Charge step following a Discharge.
-        dchg: Sets new cycles with a Discharge step following a Charge.
-        auto: Identifies the first non-rest state as the incremental state.
+    cycle_mode = chg: (默认) 在放电后以充电步骤设置新循环。
+        dchg: 在充电后以放电步骤设置新循环。
+        auto: 将第一个非静置状态识别为递增状态。
     """
 
     # Auto: find the first non rest cycle
@@ -65,7 +65,7 @@ def _generate_cycle_number(df, cycle_mode='chg'):
 
 
 def _count_changes(series):
-    """Enumerate the number of value changes in a series"""
+    """枚举系列中值变化的次数"""
     a = series.diff()
     a.iloc[0] = 1
     a.iloc[-1] = 0
@@ -73,7 +73,7 @@ def _count_changes(series):
 
 
 def _id_first_state(df):
-    """Helper function to identify the first non-rest state in a cycling profile"""
+    """识别循环配置文件中第一个非静置状态的辅助函数"""
     nonrest_states = df[df['Status'] != 'Rest']['Status']
 
     # If no non-rest cycles exist, just pick a mode; it doesn't matter.

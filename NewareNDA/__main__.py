@@ -1,6 +1,6 @@
 '''
-Script for converting Neware NDA files to other file formats. The default
-output format is csv. Other formats may require installing additional packages.
+用于将 Neware NDA 文件转换为其他文件格式的脚本。默认
+输出格式为 csv。其他格式可能需要安装额外的包。
 '''
 import argparse
 from logging import _nameToLevel
@@ -21,18 +21,18 @@ def main():
     }
 
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('in_file', help='input file')
-    parser.add_argument('out_file', help='output file')
+    parser.add_argument('in_file', help='输入文件')
+    parser.add_argument('out_file', help='输出文件')
     parser.add_argument('-f', '--format', default='csv',
                         choices=output_cmd.keys())
     parser.add_argument('-s', '--no_software_cycle_number', action='store_false',
-                        help='Generate the cycle number field to match old versions of BTSDA.')
-    parser.add_argument('-v', '--version', help='show version',
+                        help='生成循环编号字段以匹配旧版本的 BTSDA。')
+    parser.add_argument('-v', '--version', help='显示版本',
                         action='version', version=NewareNDA.__version__)
     parser.add_argument('-l', '--log_level', choices=list(_nameToLevel.keys()), default='INFO',
-                        help='Set the logging level for NewareNDA')
+                        help='设置 NewareNDA 的日志级别')
     parser.add_argument('-c', '--cycle_mode', choices=['chg', 'dchg', 'auto'], default='chg',
-                        help='Selects how the cycle is incremented.')
+                        help='选择循环递增方式。')
     args = parser.parse_args()
 
     df = NewareNDA.read(args.in_file, args.no_software_cycle_number, cycle_mode=args.cycle_mode, log_level=args.log_level)

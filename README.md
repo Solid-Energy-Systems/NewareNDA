@@ -1,45 +1,45 @@
-[![release](https://img.shields.io/github/v/release/Solid-Energy-Systems/NewareNDA)](https://github.com/Solid-Energy-Systems/NewareNDA/releases)
-[![NewareNDA regression tests](https://github.com/Solid-Energy-Systems/NewareNDA/actions/workflows/NewareNDA_pytest.yml/badge.svg)](https://github.com/Solid-Energy-Systems/NewareNDA/actions/workflows/NewareNDA_pytest.yml)
-[![Coverage Status](https://coveralls.io/repos/github/Solid-Energy-Systems/NewareNDA/badge.svg?branch=development)](https://coveralls.io/github/Solid-Energy-Systems/NewareNDA?branch=development)
+这是一个 NewareNDA 库的分叉版本。
+增加了对 v8, v22, v23, v26, v28 版本的读取。增加了文件解析的鲁棒性。
+
 # NewareNDA
 
-© 2022-2024 Copyright SES AI
-<br>Author: Daniel Cogswell
-<br>Email: danielcogswell@ses.ai
+© 2022-2024 版权所有 SES AI
+<br>原作者: [Daniel Cogswell](https://github.com/Solid-Energy-Systems/NewareNDA)
+<br>邮箱: danielcogswell@ses.ai
 
-Python module and command line tool for reading and converting Neware nda and ndax battery cycling files. Auxiliary temperature fields are currently supported in both formats.
+用于读取和转换 Neware nda 和 ndax 电池循环文件的 Python 模块和命令行工具。目前两种格式都支持辅助温度字段。
 
-# Installation
-To install the latest version from the PyPi package repository:
+# 安装
+从 PyPi 包仓库安装最新版本:
 ```
 pip install --upgrade NewareNDA
 ```
 
-To install the development branch directly from Github:
+直接从 Github 安装开发分支:
 ```
-pip install git+https://github.com/Solid-Energy-Systems/NewareNDA.git@development
+pip install git+https://github.com/jerry328-sudo/NewareNDA.git@master
 ```
 
-To install from source, clone this repository and run:
+从源代码安装，克隆此仓库并运行:
 ```
 cd NewareNDA
 pip install .
 ```
 
-# Usage
+# 使用
 ```
 import NewareNDA
 df = NewareNDA.read('filename.nda')
 ```
 
-## Logging
-Additional test information including active mass, remarks, and BTS versions is returned via [logging](https://docs.python.org/3/library/logging.html). The following command will print this logging information to the terminal:
+## 日志
+额外的测试信息，包括活性物质质量、备注和 BTS 版本，通过 [日志](https://docs.python.org/3/library/logging.html) 返回。以下命令会将此日志信息打印到终端:
 ```
 import logging
 logging.basicConfig()
 ```
 
-## Command-line interface:
+## 命令行界面:
 ```
 usage: NewareNDA-cli [-h]
                      [-f {csv,excel,feather,hdf,json,parquet,pickle,stata}]
@@ -48,26 +48,23 @@ usage: NewareNDA-cli [-h]
                      [-c {chg,dchg,auto}]
                      in_file out_file
 
-Script for converting Neware NDA files to other file formats. The default
-output format is csv. Other formats may require installing additional
-packages.
+用于将 Neware NDA 文件转换为其他文件格式的脚本。默认输出格式为 csv。其他格式可能需要安装额外的包。
 
-positional arguments:
-  in_file               input file
-  out_file              output file
+位置参数:
+  in_file               输入文件
+  out_file              输出文件
 
-options:
-  -h, --help            show this help message and exit
+选项:
+  -h, --help            显示此帮助消息并退出
   -f {csv,excel,feather,hdf,json,parquet,pickle,stata}, --format {csv,excel,feather,hdf,json,parquet,pickle,stata}
-  -s, --software_cycle_number
-                        Generate the cycle number field to match old versions
-                        of BTSDA.
-  -v, --version         show version
+  -s, --no_software_cycle_number
+                        生成循环编号字段以匹配旧版本的 BTSDA。
+  -v, --version         显示版本
   -l {CRITICAL,FATAL,ERROR,WARN,WARNING,INFO,DEBUG,NOTSET}, --log_level {CRITICAL,FATAL,ERROR,WARN,WARNING,INFO,DEBUG,NOTSET}
-                        Set the logging level for NewareNDA
+                        设置 NewareNDA 的日志级别
   -c {chg,dchg,auto}, --cycle_mode {chg,dchg,auto}
-                        Selects how the cycle is incremented.
+                        选择循环递增方式。
 ```
 
-# Troubleshooting
-If you encounter a key error, it is often the case that your file has a hardware setting that we have not seen before. Usually it is a quick fix that requires comparing output from BTSDA with values extracted by NewareNDA. Please start a new Github Issue and we will help debug.
+# 故障排除
+如果您遇到密钥错误，通常是您的文件具有我们以前未见过的硬件设置。通常这是一个快速修复，需要将 BTSDA 的输出与 NewareNDA 提取的值进行比较。请启动一个新的 Github Issue，我们将帮助调试。
